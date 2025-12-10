@@ -16,6 +16,19 @@ const MarkdownRenderer = ({ content }: { content: string }) => {
   );
 };
 
+// Streaming Markdown with cursor
+const StreamingMarkdownRenderer = ({ content, isStreaming }: { content: string, isStreaming: boolean }) => {
+  if (!content) return null;
+  return (
+    <div className="relative">
+      <MarkdownRenderer content={content} />
+      {isStreaming && (
+        <span className="inline-block w-2 h-4 bg-clarity-400 ml-1 animate-pulse" style={{ animation: 'pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite' }}></span>
+      )}
+    </div>
+  );
+};
+
 // --- Modern Icons ---
 const Icons = {
   Brain: () => <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/><path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/><path d="M15 13a4.5 4.5 0 0 1-3-4 4.5 4.5 0 0 1-3 4"/><path d="M17.599 6.5a3 3 0 0 0 .399-1.375"/><path d="M6.003 5.125A3 3 0 0 0 6.401 6.5"/><path d="M3.477 10.896a4 4 0 0 1 .585-.396"/><path d="M19.938 10.5a4 4 0 0 1 .585.396"/><path d="M6 18a4 4 0 0 1-1.97-3.284"/><path d="M17.97 14.716A4 4 0 0 1 18 18"/></svg>,
@@ -59,6 +72,37 @@ const LoadingOverlay = ({ text }: { text: string }) => (
   </div>
 );
 
+// Subtle streaming indicator - doesn't block content
+const StreamingIndicator = ({ text }: { text: string }) => (
+  <div className="flex items-center gap-2 text-clarity-400 text-sm animate-pulse">
+    <div className="relative">
+      <div className="w-4 h-4 rounded-full border-2 border-clarity-500/30 border-t-clarity-400 animate-spin"></div>
+    </div>
+    <span className="font-medium">{text}</span>
+  </div>
+);
+
+// Enhanced loading indicator with animated dots
+const LoadingIndicator = ({ text }: { text: string }) => {
+  const [dots, setDots] = React.useState('');
+  
+  React.useEffect(() => {
+    const interval = setInterval(() => {
+      setDots(prev => prev.length >= 3 ? '' : prev + '.');
+    }, 500);
+    return () => clearInterval(interval);
+  }, []);
+  
+  return (
+    <div className="flex items-center gap-3 text-clarity-300 text-sm bg-clarity-900/20 border border-clarity-500/20 rounded-xl px-4 py-2">
+      <div className="relative">
+        <div className="w-4 h-4 rounded-full border-2 border-clarity-500/30 border-t-clarity-400 animate-spin"></div>
+      </div>
+      <span className="font-medium min-w-[150px]">{text}{dots}</span>
+    </div>
+  );
+};
+
 // --- VIEW: Free Jam Session ---
 const FreeJamView = ({ 
   ideas, setIdeas, attachments, setAttachments
@@ -79,10 +123,12 @@ const FreeJamView = ({
 
   const generateSummary = async () => {
     setLoading(true);
+    setSummary(''); // Clear previous summary
     try {
-      // Pass both text ideas and attachments to the service
-      const result = await AIService.summarizeIdeas(ideas, attachments);
-      setSummary(result);
+      // Pass both text ideas and attachments to the service with streaming
+      await AIService.summarizeIdeas(ideas, attachments, (chunk) => {
+        setSummary(prev => prev + chunk);
+      });
     } catch (e) {
       console.error(e);
     } finally {
@@ -129,14 +175,16 @@ const FreeJamView = ({
 
   return (
     <div className="h-full flex flex-col p-8 relative">
-      {loading && <LoadingOverlay text="Analyzing Context & Files..." />}
-      
       <div className="flex justify-between items-end mb-10">
         <div>
           <h2 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-400 tracking-tight">Brainstorming</h2>
           <p className="text-gray-500 mt-2 font-light">Capture raw concepts, upload docs & meeting audios.</p>
         </div>
-        <button onClick={generateSummary} className="flex items-center gap-2 bg-clarity hover:bg-clarity-600 text-white px-5 py-2.5 rounded-xl shadow-glow transition-all hover:scale-105 active:scale-95 font-medium">
+        <button 
+          onClick={generateSummary} 
+          disabled={loading}
+          className="flex items-center gap-2 bg-clarity hover:bg-clarity-600 text-white px-5 py-2.5 rounded-xl shadow-glow transition-all hover:scale-105 active:scale-95 font-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+        >
           <Icons.Zap /> Analyze Context
         </button>
       </div>
@@ -203,17 +251,20 @@ const FreeJamView = ({
 
         {/* AI Output */}
         <div className="w-1/2 bg-black/20 backdrop-blur-md border border-white/5 rounded-3xl p-8 overflow-y-auto shadow-inner">
-          <h3 className="text-xs font-bold text-clarity-400 uppercase tracking-widest mb-6 border-b border-white/5 pb-4">
-            AI Executive Summary
-          </h3>
+          <div className="flex items-center justify-between mb-6 border-b border-white/5 pb-4">
+            <h3 className="text-xs font-bold text-clarity-400 uppercase tracking-widest">
+              AI Executive Summary
+            </h3>
+            {loading && <StreamingIndicator text="Generating..." />}
+          </div>
           {summary ? (
-             <MarkdownRenderer content={summary} />
-          ) : (
+             <StreamingMarkdownRenderer content={summary} isStreaming={loading} />
+          ) : !loading ? (
             <div className="h-full flex flex-col items-center justify-center text-gray-600 opacity-50">
                <div className="scale-150 mb-4 text-gray-700"><Icons.Brain /></div>
                <p className="text-sm font-light">Run analysis to generate summary</p>
             </div>
-          )}
+          ) : null}
         </div>
       </div>
     </div>
@@ -268,9 +319,11 @@ const NfrView = ({
   const runAnalysis = async () => {
     setLoading(true);
     setShowAnalysis(true);
+    setRiskAnalysis(''); // Clear previous analysis
     try {
-      const result = await AIService.analyzeRisks(nfrs);
-      setRiskAnalysis(result);
+      await AIService.analyzeRisks(nfrs, (chunk) => {
+        setRiskAnalysis(prev => prev + chunk);
+      });
     } catch (e) {
       console.error(e);
     } finally {
@@ -289,8 +342,6 @@ const NfrView = ({
 
   return (
     <div className="h-full flex flex-col p-8 relative">
-       {loading && <LoadingOverlay text="Analyzing Compliance & Risks..." />}
-       
        <div className="flex justify-between items-center mb-6">
           <div>
             <h2 className="text-3xl font-bold text-white tracking-tight">Non-Functional Requirements</h2>
@@ -298,7 +349,7 @@ const NfrView = ({
           </div>
           <button 
             onClick={runAnalysis} 
-            disabled={nfrs.length === 0}
+            disabled={nfrs.length === 0 || loading}
             className="flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white px-5 py-2.5 rounded-xl text-sm font-medium transition-colors backdrop-blur-sm disabled:opacity-50 disabled:cursor-not-allowed"
           >
              <Icons.Shield /> Verify Risks
@@ -432,21 +483,24 @@ const NfrView = ({
           {showAnalysis && (
             <div className="w-1/3 bg-black/40 backdrop-blur-xl border-l border-white/10 p-6 flex flex-col animate-in slide-in-from-right duration-300 relative z-30">
                <div className="flex justify-between items-center mb-6">
-                 <h3 className="text-xs font-bold text-red-400 uppercase tracking-widest flex items-center gap-2">
-                   <Icons.Shield /> Risk Report
-                 </h3>
+                 <div className="flex items-center gap-3">
+                   <h3 className="text-xs font-bold text-red-400 uppercase tracking-widest flex items-center gap-2">
+                     <Icons.Shield /> Risk Report
+                   </h3>
+                   {loading && <StreamingIndicator text="Analyzing..." />}
+                 </div>
                  <button onClick={() => setShowAnalysis(false)} className="text-gray-500 hover:text-white">
                    <Icons.X />
                  </button>
                </div>
                <div className="flex-1 overflow-y-auto pr-2 scrollbar-thin">
                  {riskAnalysis ? (
-                   <MarkdownRenderer content={riskAnalysis} />
-                 ) : (
+                   <StreamingMarkdownRenderer content={riskAnalysis} isStreaming={loading} />
+                 ) : !loading ? (
                    <div className="flex items-center justify-center h-40">
-                     <p className="text-gray-500 text-xs italic">Analyzing...</p>
+                     <p className="text-gray-500 text-xs italic">Ready to analyze...</p>
                    </div>
-                 )}
+                 ) : null}
                </div>
             </div>
           )}
@@ -505,12 +559,14 @@ const CardCreationView = ({
     if (!card) return;
 
     setLoading(true);
+    
     try {
+      // No streaming for JSON generation - it needs to be complete to parse
       const generated = await AIService.generateSmartCard(
         card.title, 
         ideas, 
         nfrs,
-        genSettings // Pass settings here
+        genSettings
       );
       updateCard(cardId, { ...generated, status: 'Ready' });
     } catch (e) {
@@ -565,21 +621,20 @@ const CardCreationView = ({
 
   const activeCard = cards.find(c => c.id === activeCardId);
 
-  // Helper for subtask visual tag colors
+  // Helper for subtask visual tag colors - Modern style
   const getTypeColor = (type: string) => {
     switch(type) {
-      case 'Backend': return 'bg-blue-500/10 text-blue-300 border-blue-500/20';
-      case 'Frontend': return 'bg-purple-500/10 text-purple-300 border-purple-500/20';
-      case 'Testing': return 'bg-green-500/10 text-green-300 border-green-500/20';
-      case 'DevOps': return 'bg-orange-500/10 text-orange-300 border-orange-500/20';
-      default: return 'bg-gray-800 text-gray-300 border-gray-700';
+      case 'Backend': return 'bg-blue-500/20 text-blue-200 border-blue-500/40 hover:bg-blue-500/30';
+      case 'Frontend': return 'bg-purple-500/20 text-purple-200 border-purple-500/40 hover:bg-purple-500/30';
+      case 'Testing': return 'bg-green-500/20 text-green-200 border-green-500/40 hover:bg-green-500/30';
+      case 'DevOps': return 'bg-orange-500/20 text-orange-200 border-orange-500/40 hover:bg-orange-500/30';
+      case 'Docs': return 'bg-yellow-500/20 text-yellow-200 border-yellow-500/40 hover:bg-yellow-500/30';
+      default: return 'bg-gray-700/20 text-gray-300 border-gray-600/40 hover:bg-gray-700/30';
     }
   };
 
   return (
     <div className="h-full flex flex-row relative">
-      {loading && <LoadingOverlay text="Generating Specifications..." />}
-      
       {/* Sidebar List */}
       <div className="w-80 flex flex-col border-r border-white/5 bg-gray-900/30 backdrop-blur-sm flex-shrink-0">
         <div className="p-6 border-b border-white/5">
@@ -655,9 +710,11 @@ const CardCreationView = ({
                      <button onClick={() => toggleSetting('includeTesting')} className={`px-2 py-1 text-[10px] font-bold uppercase rounded-lg border transition-all ${genSettings.includeTesting ? 'bg-green-900/40 border-green-500/40 text-green-300' : 'border-transparent text-gray-600'}`}>QA</button>
                      <button onClick={() => toggleSetting('includeDocs')} className={`px-2 py-1 text-[10px] font-bold uppercase rounded-lg border transition-all ${genSettings.includeDocs ? 'bg-orange-900/40 border-orange-500/40 text-orange-300' : 'border-transparent text-gray-600'}`}>Docs</button>
                   </div>
+                  {loading && <LoadingIndicator text="Analyzing requirements" />}
                   <button 
                     onClick={() => generateDetails(activeCard.id)}
-                    className="bg-clarity hover:bg-clarity-600 text-white px-5 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 transition-all shadow-glow hover:scale-105 active:scale-95"
+                    disabled={loading}
+                    className="bg-clarity hover:bg-clarity-600 text-white px-5 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 transition-all shadow-glow hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                   >
                     <Icons.Zap /> {activeCard.status === 'Draft' ? 'Generate Specs' : 'Regenerate'}
                   </button>
@@ -666,57 +723,8 @@ const CardCreationView = ({
 
             <div className="grid grid-cols-12 gap-10">
                
-               {/* LEFT COLUMN: Description & Criteria */}
-               <div className="col-span-7 space-y-10">
-                  {/* Description */}
-                  <section className="bg-gray-900/20 rounded-3xl p-1">
-                    <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3 pl-1">Description</h3>
-                    <textarea 
-                      className="w-full h-48 bg-transparent rounded-2xl p-4 text-sm text-gray-300 leading-relaxed focus:bg-white/5 focus:outline-none transition-all resize-y border border-transparent focus:border-white/10"
-                      value={activeCard.description}
-                      placeholder="Enter technical description..."
-                      onChange={(e) => updateCard(activeCard.id, { description: e.target.value })}
-                    />
-                  </section>
-
-                  {/* Acceptance Criteria */}
-                  <section>
-                     <div className="flex justify-between items-center mb-4">
-                        <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest pl-1">Acceptance Criteria</h3>
-                        <button onClick={() => addCriteria(activeCard.id)} className="text-xs text-clarity-400 hover:text-clarity-300 font-medium bg-clarity-900/20 px-3 py-1 rounded-full transition-colors">+ Add Criteria</button>
-                     </div>
-                     <div className="space-y-3">
-                       {activeCard.acceptanceCriteria.map((ac, i) => (
-                         <div key={i} className="flex gap-3 items-start group bg-gray-900/30 p-3 rounded-2xl border border-transparent hover:border-white/5 transition-all">
-                           <div className="mt-1.5 text-clarity-500"><Icons.Check /></div>
-                           <textarea 
-                              rows={1}
-                              className="flex-1 bg-transparent text-sm text-gray-300 focus:outline-none resize-none overflow-hidden font-light"
-                              value={ac}
-                              onChange={(e) => handleCriteriaChange(activeCard.id, i, e.target.value)}
-                              onInput={(e) => {
-                                const target = e.target as HTMLTextAreaElement;
-                                target.style.height = 'auto';
-                                target.style.height = target.scrollHeight + 'px';
-                              }}
-                           />
-                           <button 
-                              onClick={() => removeCriteria(activeCard.id, i)}
-                              className="mt-1 text-gray-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
-                           >
-                             <Icons.Trash />
-                           </button>
-                         </div>
-                       ))}
-                       {activeCard.acceptanceCriteria.length === 0 && (
-                         <p className="text-sm text-gray-600 italic pl-6">No criteria defined yet.</p>
-                       )}
-                     </div>
-                  </section>
-               </div>
-
-               {/* RIGHT COLUMN: Estimation & Subtasks */}
-               <div className="col-span-5 space-y-8">
+               {/* LEFT COLUMN: Implementation Tasks & Estimation */}
+               <div className="col-span-7 space-y-8">
                   
                   {/* Total Estimate */}
                   <section className="bg-gradient-to-br from-gray-900/80 to-black/80 p-6 rounded-3xl border border-white/5 shadow-2xl relative overflow-hidden group">
@@ -727,8 +735,10 @@ const CardCreationView = ({
                          <div className="flex items-center gap-4">
                            <div className="relative">
                              <input 
-                               type="number" 
-                               className="w-24 bg-transparent border-b-2 border-white/10 p-2 text-4xl font-bold text-white text-center focus:border-clarity-500 focus:outline-none font-mono"
+                               type="number"
+                               min="0"
+                               max="9999"
+                               className="w-32 bg-transparent border-b-2 border-white/10 p-2 text-4xl font-bold text-white text-center focus:border-clarity-500 focus:outline-none font-mono"
                                value={activeCard.totalStoryPoints}
                                onChange={(e) => updateCard(activeCard.id, { totalStoryPoints: parseInt(e.target.value) || 0 })}
                              />
@@ -745,60 +755,133 @@ const CardCreationView = ({
                       />
                   </section>
 
-                  {/* Subtasks - VISUAL CARDS */}
+                  {/* Subtasks - VISUAL CARDS - NOW PRIMARY */}
                   <section>
-                    <div className="flex justify-between items-center mb-4">
-                       <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest">Implementation Tasks</h3>
-                       <button onClick={() => addSubtask(activeCard.id)} className="text-xs text-clarity-400 hover:text-clarity-300 font-medium">+ Add Task</button>
+                    <div className="flex justify-between items-center mb-6">
+                       <h3 className="text-sm font-bold text-white uppercase tracking-widest flex items-center gap-2">
+                         <Icons.Kanban />
+                         Implementation Tasks
+                       </h3>
+                       <button onClick={() => addSubtask(activeCard.id)} className="text-xs text-clarity-400 hover:text-clarity-300 font-medium bg-clarity-900/30 hover:bg-clarity-900/50 px-4 py-2 rounded-xl transition-all border border-clarity-500/20 flex items-center gap-2">
+                         <Icons.Plus />
+                         Add Task
+                       </button>
                     </div>
-                    <div className="space-y-3">
+                    <div className="space-y-4">
                       {activeCard.subtasks.map((task, i) => (
-                        <div key={i} className="bg-gray-900/40 border border-white/5 rounded-2xl p-4 hover:border-white/10 transition-all shadow-sm group backdrop-blur-sm">
-                           {/* Row 1: Type and Actions */}
-                           <div className="flex justify-between items-center mb-3">
-                              <select 
-                                className={`text-[10px] uppercase font-bold px-2.5 py-1 rounded-full border focus:outline-none cursor-pointer appearance-none tracking-wider ${getTypeColor(task.type)}`}
-                                value={task.type}
-                                onChange={(e) => updateSubtask(activeCard.id, i, 'type', e.target.value)}
-                              >
-                                <option value="Backend">Backend</option>
-                                <option value="Frontend">Frontend</option>
-                                <option value="Testing">Testing</option>
-                                <option value="DevOps">DevOps</option>
-                                <option value="Docs">Docs</option>
-                              </select>
-                              <button onClick={() => removeSubtask(activeCard.id, i)} className="text-gray-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <Icons.X />
-                              </button>
-                           </div>
+                        <div key={i} className="relative bg-white/[0.02] border border-white/10 rounded-2xl p-5 hover:bg-white/[0.04] hover:border-white/20 transition-all group">
+                           {/* Glassmorphism accent bar */}
+                           <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-clarity-500 to-clarity-700 rounded-l-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
                            
-                           {/* Row 2: Title */}
-                           <input 
-                              className="w-full bg-transparent text-sm text-gray-200 font-medium mb-3 focus:outline-none border-b border-transparent focus:border-gray-700 placeholder-gray-600"
-                              value={task.title}
-                              placeholder="Task title..."
-                              onChange={(e) => updateSubtask(activeCard.id, i, 'title', e.target.value)}
-                           />
-
-                           {/* Row 3: Points */}
-                           <div className="flex items-center justify-end gap-2">
-                              <span className="text-[10px] text-gray-500 uppercase tracking-wider">Est.</span>
-                              <input 
-                                type="number"
-                                className="w-12 bg-black/30 border border-white/10 rounded-lg px-2 py-1 text-xs text-right text-gray-300 focus:border-clarity-500 focus:outline-none font-mono"
-                                value={task.storyPoints}
-                                onChange={(e) => updateSubtask(activeCard.id, i, 'storyPoints', parseInt(e.target.value) || 0)}
-                              />
-                              <span className="text-[10px] text-gray-500">SP</span>
+                           <div className="flex gap-4">
+                              {/* Left side: Chip + Title */}
+                              <div className="flex-1 min-w-0 space-y-3">
+                                {/* Type Badge - Top */}
+                                <select 
+                                  className={`text-xs uppercase font-bold px-4 py-2 rounded-2xl border-2 focus:outline-none cursor-pointer tracking-wider transition-all inline-block ${getTypeColor(task.type)}`}
+                                  value={task.type}
+                                  onChange={(e) => updateSubtask(activeCard.id, i, 'type', e.target.value)}
+                                >
+                                  <option value="Backend">Backend</option>
+                                  <option value="Frontend">Frontend</option>
+                                  <option value="Testing">Testing</option>
+                                  <option value="DevOps">DevOps</option>
+                                  <option value="Docs">Docs</option>
+                                </select>
+                                
+                                {/* Title - Bottom */}
+                                <textarea 
+                                  rows={2}
+                                  className="w-full bg-transparent text-sm text-gray-200 font-medium focus:outline-none placeholder-gray-600 resize-none leading-relaxed"
+                                  value={task.title}
+                                  placeholder="Task title..."
+                                  onChange={(e) => updateSubtask(activeCard.id, i, 'title', e.target.value)}
+                                  onInput={(e) => {
+                                    const target = e.target as HTMLTextAreaElement;
+                                    target.style.height = 'auto';
+                                    target.style.height = Math.max(target.scrollHeight, 40) + 'px';
+                                  }}
+                                />
+                              </div>
+                              
+                              {/* Right side: Story Points + Delete */}
+                              <div className="flex flex-col items-end justify-between flex-shrink-0">
+                                <div className="flex items-center gap-2 bg-clarity-900/30 border border-clarity-500/25 rounded-lg px-2.5 py-1.5">
+                                  <input 
+                                    type="number"
+                                    min="0"
+                                    max="999"
+                                    className="w-9 bg-transparent text-xs font-bold text-clarity-300 focus:outline-none text-center font-mono"
+                                    value={task.storyPoints}
+                                    onChange={(e) => updateSubtask(activeCard.id, i, 'storyPoints', parseInt(e.target.value) || 0)}
+                                  />
+                                  <span className="text-[9px] text-clarity-400 font-medium uppercase tracking-wide">SP</span>
+                                </div>
+                                
+                                <button onClick={() => removeSubtask(activeCard.id, i)} className="text-gray-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all hover:scale-110 mt-auto">
+                                  <Icons.Trash />
+                                </button>
+                              </div>
                            </div>
                         </div>
                       ))}
                       {activeCard.subtasks.length === 0 && (
-                        <div className="text-center py-8 border-2 border-dashed border-gray-800/50 rounded-2xl">
-                           <p className="text-xs text-gray-600">No implementation tasks yet.</p>
+                        <div className="text-center py-16 border-2 border-dashed border-gray-800/50 rounded-2xl bg-gray-900/20">
+                           <div className="text-gray-700 mb-3 flex justify-center"><Icons.Kanban /></div>
+                           <p className="text-sm text-gray-500 font-medium">No implementation tasks yet</p>
+                           <p className="text-xs text-gray-700 mt-2">Click "Add Task" to get started</p>
                         </div>
                       )}
                     </div>
+                  </section>
+               </div>
+
+               {/* RIGHT COLUMN: Description & Criteria */}
+               <div className="col-span-5 space-y-10">
+                  {/* Description */}
+                  <section className="bg-gray-900/20 rounded-3xl p-1">
+                    <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3 pl-1">Description</h3>
+                    <textarea 
+                      className="w-full h-40 bg-transparent rounded-2xl p-4 text-sm text-gray-300 leading-relaxed focus:bg-white/5 focus:outline-none transition-all resize-y border border-transparent focus:border-white/10"
+                      value={activeCard.description}
+                      placeholder="Enter technical description..."
+                      onChange={(e) => updateCard(activeCard.id, { description: e.target.value })}
+                    />
+                  </section>
+
+                  {/* Acceptance Criteria */}
+                  <section>
+                     <div className="flex justify-between items-center mb-4">
+                        <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest pl-1">Acceptance Criteria</h3>
+                        <button onClick={() => addCriteria(activeCard.id)} className="text-xs text-clarity-400 hover:text-clarity-300 font-medium bg-clarity-900/20 px-3 py-1.5 rounded-lg transition-colors">+ Add</button>
+                     </div>
+                     <div className="space-y-2.5">
+                       {activeCard.acceptanceCriteria.map((ac, i) => (
+                         <div key={i} className="flex gap-3 items-start group bg-white/[0.02] p-4 rounded-xl border border-transparent hover:border-white/5 transition-all hover:bg-white/[0.03]">
+                           <div className="mt-1 text-clarity-400 flex-shrink-0"><Icons.Check /></div>
+                           <textarea 
+                              rows={1}
+                              className="flex-1 bg-transparent text-sm text-gray-300 focus:outline-none resize-none overflow-hidden font-light leading-relaxed"
+                              value={ac}
+                              onChange={(e) => handleCriteriaChange(activeCard.id, i, e.target.value)}
+                              onInput={(e) => {
+                                const target = e.target as HTMLTextAreaElement;
+                                target.style.height = 'auto';
+                                target.style.height = target.scrollHeight + 'px';
+                              }}
+                           />
+                           <button 
+                              onClick={() => removeCriteria(activeCard.id, i)}
+                              className="mt-1 text-gray-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all hover:scale-110"
+                           >
+                             <Icons.Trash />
+                           </button>
+                         </div>
+                       ))}
+                       {activeCard.acceptanceCriteria.length === 0 && (
+                         <p className="text-sm text-gray-600 italic pl-6 py-4">No criteria defined yet.</p>
+                       )}
+                     </div>
                   </section>
                </div>
             </div>

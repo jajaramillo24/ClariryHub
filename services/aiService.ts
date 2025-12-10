@@ -58,7 +58,109 @@ const callBedrockAPI = async (messages: ChatMessage[], jsonMode = false): Promis
   return data.choices[0]?.message?.content || "";
 };
 
-// --- Schema Documentation (for prompt instructions) ---
+const callBedrockAPIStream = async (
+  messages: ChatMessage[], 
+  onChunk: (chunk: string) => void,
+  jsonMode = false
+): Promise<string> => {
+  const requestBody: ChatCompletionRequest = {
+    stream: true,
+    model: MODEL,
+    messages,
+    features: {
+      image_generation: false,
+      code_interpreter: false,
+      web_search: false
+    },
+    temperature: 0.2,
+    max_tokens: 4096,
+  };
+
+  if (jsonMode) {
+    requestBody.response_format = { type: "json_object" };
+  }
+
+  const response = await fetch(API_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${API_KEY}`,
+    },
+    body: JSON.stringify(requestBody),
+  });
+
+  if (!response.ok) {
+    throw new Error(`API Error: ${response.status} ${response.statusText}`);
+  }
+
+  const reader = response.body?.getReader();
+  if (!reader) {
+    throw new Error("Response body is not readable");
+  }
+
+  const decoder = new TextDecoder();
+  let fullContent = "";
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const chunk = decoder.decode(value, { stream: true });
+      const lines = chunk.split('\n');
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6);
+          
+          if (data === '[DONE]') {
+            continue;
+          }
+
+          try {
+            const parsed = JSON.parse(data);
+            const content = parsed.choices[0]?.delta?.content || '';
+            
+            if (content) {
+              fullContent += content;
+              onChunk(content);
+            }
+          } catch (e) {
+            // Skip malformed JSON
+            continue;
+          }
+        }
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  return fullContent;
+};
+
+const cleanJsonResponse = (text: string): string => {
+  let cleaned = text.trim();
+  
+  if (cleaned.startsWith('```json\n')) {
+    cleaned = cleaned.slice(8);
+  } else if (cleaned.startsWith('```json')) {
+    cleaned = cleaned.slice(7);
+  } else if (cleaned.startsWith('```\n')) {
+    cleaned = cleaned.slice(4);
+  } else if (cleaned.startsWith('```')) {
+    cleaned = cleaned.slice(3);
+  }
+  
+  if (cleaned.endsWith('\n```')) {
+    cleaned = cleaned.slice(0, -4);
+  } else if (cleaned.endsWith('```')) {
+    cleaned = cleaned.slice(0, -3);
+  }
+  
+  return cleaned.trim();
+};
+
 const CARD_SCHEMA_DESCRIPTION = `
 Return a JSON object with this exact structure:
 {
@@ -91,7 +193,8 @@ export const generateSmartCard = async (
   title: string,
   contextIdeas: Idea[],
   contextNfrs: NFR[],
-  options: GenerationOptions
+  options: GenerationOptions,
+  onChunk?: (chunk: string) => void
 ): Promise<Partial<ProjectCard>> => {
   const ideasText = contextIdeas.map(i => `- ${i.content}`).join('\n');
   const nfrsText = contextNfrs.map(n => `- [${n.category} - ${n.impactLevel} Priority] ${n.title}: ${n.description}`).join('\n');
@@ -127,7 +230,9 @@ export const generateSmartCard = async (
     
     ${CARD_SCHEMA_DESCRIPTION}
     
-    Output strictly structured JSON. Use professional, corporate technical language. Do not use emojis.
+    CRITICAL: Output ONLY the raw JSON object. Do NOT wrap it in markdown code blocks or backticks. 
+    Do NOT include \`\`\`json or \`\`\` markers. Start directly with { and end with }.
+    Use professional, corporate technical language. Do not use emojis.
   `;
 
   try {
@@ -138,17 +243,33 @@ export const generateSmartCard = async (
       },
     ];
 
-    const responseText = await callBedrockAPI(messages, true);
+    let responseText: string;
+    if (onChunk) {
+      responseText = await callBedrockAPIStream(messages, onChunk, true);
+    } else {
+      responseText = await callBedrockAPI(messages, true);
+    }
+    
     if (!responseText) throw new Error("No response from AI");
     
-    return JSON.parse(responseText) as Partial<ProjectCard>;
+    // Clean the response to remove markdown code blocks
+    const cleanedResponse = cleanJsonResponse(responseText);
+    
+    try {
+      return JSON.parse(cleanedResponse) as Partial<ProjectCard>;
+    } catch (parseError) {
+      console.error("JSON Parse Error. Raw response:", responseText);
+      console.error("Cleaned response:", cleanedResponse);
+      console.error("Parse error:", parseError);
+      throw new Error(`Failed to parse JSON response: ${parseError}`);
+    }
   } catch (error) {
     console.error("Error generating card:", error);
     throw error;
   }
 };
 
-export const analyzeRisks = async (nfrs: NFR[]): Promise<string> => {
+export const analyzeRisks = async (nfrs: NFR[], onChunk?: (chunk: string) => void): Promise<string> => {
     const nfrsText = nfrs.map(n => `- [${n.category} - ${n.impactLevel} Priority] ${n.title}: ${n.description}`).join('\n');
     
     const prompt = `Analyze these Non-Functional Requirements. Return a strictly professional Markdown report identifying conflicts and technical risks. Do not use emojis. Use standard bullet points.\n\n${nfrsText}`;
@@ -160,11 +281,19 @@ export const analyzeRisks = async (nfrs: NFR[]): Promise<string> => {
       },
     ];
 
-    const responseText = await callBedrockAPI(messages);
-    return responseText || "No risks identified.";
+    if (onChunk) {
+      return await callBedrockAPIStream(messages, onChunk);
+    } else {
+      const responseText = await callBedrockAPI(messages);
+      return responseText || "No risks identified.";
+    }
 }
 
-export const summarizeIdeas = async (ideas: Idea[], attachments: Attachment[]): Promise<string> => {
+export const summarizeIdeas = async (
+  ideas: Idea[], 
+  attachments: Attachment[], 
+  onChunk?: (chunk: string) => void
+): Promise<string> => {
     const ideasText = ideas.map(i => `- ${i.content}`).join('\n');
     
     let prompt = `
@@ -205,8 +334,12 @@ export const summarizeIdeas = async (ideas: Idea[], attachments: Attachment[]): 
         ];
         
         try {
-          const responseText = await callBedrockAPI(messages);
-          return responseText || "No summary available.";
+          if (onChunk) {
+            return await callBedrockAPIStream(messages, onChunk);
+          } else {
+            const responseText = await callBedrockAPI(messages);
+            return responseText || "No summary available.";
+          }
         } catch (e) {
           console.error("Bedrock API Error:", e);
           return "Error analyzing files. Please try again.";
@@ -223,8 +356,12 @@ export const summarizeIdeas = async (ideas: Idea[], attachments: Attachment[]): 
         }
       ];
       
-      const responseText = await callBedrockAPI(messages);
-      return responseText || "No summary available.";
+      if (onChunk) {
+        return await callBedrockAPIStream(messages, onChunk);
+      } else {
+        const responseText = await callBedrockAPI(messages);
+        return responseText || "No summary available.";
+      }
     } catch (e) {
       console.error("Bedrock API Error:", e);
       return "Error analyzing content. Please try again.";
