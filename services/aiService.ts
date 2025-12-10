@@ -1,8 +1,8 @@
 import { Idea, NFR, ProjectCard, Attachment } from "../types";
 
-const API_URL = "https://chat.jazusoft.com/v1/chat/completions";
+const API_URL = "https://chat.jazusoft.com/api/chat/completions";
 const API_KEY = import.meta.env.VITE_API_KEY || "";
-const MODEL = "clarityhub";
+const MODEL = "clarirtyhub";
 
 interface ChatMessage {
   role: "system" | "user" | "assistant";
@@ -10,8 +10,14 @@ interface ChatMessage {
 }
 
 interface ChatCompletionRequest {
+  stream: boolean;
   model: string;
   messages: ChatMessage[];
+  features: {
+    image_generation: boolean;
+    code_interpreter: boolean;
+    web_search: boolean;
+  };
   temperature?: number;
   max_tokens?: number;
   response_format?: { type: "json_object" };
@@ -19,8 +25,14 @@ interface ChatCompletionRequest {
 
 const callBedrockAPI = async (messages: ChatMessage[], jsonMode = false): Promise<string> => {
   const requestBody: ChatCompletionRequest = {
+    stream: false,
     model: MODEL,
     messages,
+    features: {
+      image_generation: false,
+      code_interpreter: false,
+      web_search: false
+    },
     temperature: 0.2,
     max_tokens: 4096,
   };
