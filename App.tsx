@@ -1011,10 +1011,8 @@ export default function App() {
       
       {/* Floating Sidebar */}
       <aside className="w-20 lg:w-72 flex-shrink-0 bg-gray-900/60 backdrop-blur-xl border border-white/5 rounded-3xl flex flex-col z-20 shadow-2xl transition-all duration-300">
-        <div className="h-32 flex items-center justify-center px-4 lg:px-6 border-b border-white/5">
-           <div className="w-full h-24 flex items-center justify-center">
-             <img src="/clarity_logo.png" alt="ClarityHub Logo" className="h-full w-auto object-contain max-w-full" />
-           </div>
+        <div className="h-28 flex items-center justify-center px-2 lg:px-4 border-b border-white/5">
+           <img src="/clarity_logo.png" alt="ClarityHub Logo" className="w-full h-auto object-contain py-4" />
         </div>
 
         <nav className="flex-1 p-4 space-y-2">
