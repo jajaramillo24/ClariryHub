@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Stage, Idea, NFR, ProjectCard, CsvColumn, Subtask, Attachment } from './types';
 import { STAGES } from './constants';
-import * as GeminiService from './services/geminiService';
+import * as AIService from './services/aiService';
 import { parse } from 'marked';
 
 // --- Markdown Renderer ---
@@ -81,7 +81,7 @@ const FreeJamView = ({
     setLoading(true);
     try {
       // Pass both text ideas and attachments to the service
-      const result = await GeminiService.summarizeIdeas(ideas, attachments);
+      const result = await AIService.summarizeIdeas(ideas, attachments);
       setSummary(result);
     } catch (e) {
       console.error(e);
@@ -269,7 +269,7 @@ const NfrView = ({
     setLoading(true);
     setShowAnalysis(true);
     try {
-      const result = await GeminiService.analyzeRisks(nfrs);
+      const result = await AIService.analyzeRisks(nfrs);
       setRiskAnalysis(result);
     } catch (e) {
       console.error(e);
@@ -506,7 +506,7 @@ const CardCreationView = ({
 
     setLoading(true);
     try {
-      const generated = await GeminiService.generateSmartCard(
+      const generated = await AIService.generateSmartCard(
         card.title, 
         ideas, 
         nfrs,

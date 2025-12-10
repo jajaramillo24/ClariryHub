@@ -32,7 +32,7 @@ jobs:
 
       - name: Build
         env:
-          API_KEY: ${{ secrets.API_KEY }}
+          VITE_API_KEY: ${{ secrets.API_KEY }}
         run: npm run build
 
       - name: Setup Pages
