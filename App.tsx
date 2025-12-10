@@ -1011,13 +1011,9 @@ export default function App() {
       
       {/* Floating Sidebar */}
       <aside className="w-20 lg:w-72 flex-shrink-0 bg-gray-900/60 backdrop-blur-xl border border-white/5 rounded-3xl flex flex-col z-20 shadow-2xl transition-all duration-300">
-        <div className="h-24 flex items-center gap-4 px-6 lg:px-8 border-b border-white/5">
-           <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 relative overflow-hidden group">
-             <img src="/clarity_logo.png" alt="ClarityHub Logo" className="w-full h-full object-contain" />
-           </div>
-           <div className="hidden lg:flex flex-col">
-              <span className="font-bold text-base tracking-wide text-white leading-none">CLARITY<span className="text-gray-500 font-light">HUB</span></span>
-              <span className="text-[10px] text-clarity-400 font-medium tracking-widest mt-1">ENGINEERING AI</span>
+        <div className="h-24 flex items-center justify-center lg:justify-start gap-4 px-4 lg:px-8 border-b border-white/5">
+           <div className="w-full lg:w-auto h-16 flex items-center justify-center">
+             <img src="/clarity_logo.png" alt="ClarityHub Logo" className="h-full w-auto object-contain" />
            </div>
         </div>
 
