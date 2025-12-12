@@ -216,7 +216,7 @@ const FreeJamView = ({
         <button 
           onClick={generateSummary} 
           disabled={loading}
-          className="flex items-center gap-2 bg-clarity hover:bg-clarity-600 text-white px-5 py-2.5 rounded-xl shadow-glow transition-all hover:scale-105 active:scale-95 font-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+          className="flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-clarity-500/30 text-gray-300 hover:text-white px-5 py-2.5 rounded-xl transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Icons.Zap /> Analyze Context
         </button>
@@ -307,7 +307,7 @@ const FreeJamView = ({
               <button
                 onClick={generateBacklogCards}
                 disabled={generatingCards}
-                className="w-full flex items-center justify-center gap-3 bg-gradient-to-r from-clarity-600 to-clarity-700 hover:from-clarity-500 hover:to-clarity-600 text-white px-6 py-4 rounded-xl shadow-glow transition-all hover:scale-105 active:scale-95 font-semibold disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                className="w-full flex items-center justify-center gap-3 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-clarity-500/30 text-gray-300 hover:text-white px-6 py-4 rounded-xl transition-all font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {generatingCards ? (
                   <>
@@ -496,7 +496,7 @@ const NfrView = ({
                 <button 
                   onClick={addNfr}
                   disabled={!requirementText.trim()}
-                  className="mt-auto w-full bg-clarity-600 hover:bg-clarity-500 text-white font-medium py-3 rounded-xl shadow-lg shadow-clarity-900/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  className="mt-auto w-full bg-white/5 hover:bg-white/10 border border-white/10 hover:border-clarity-500/30 text-gray-300 hover:text-white font-medium py-3 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                   <Icons.Plus /> Add Requirement
                 </button>
@@ -698,13 +698,13 @@ const CardCreationView = ({
   return (
     <div className="h-full flex flex-row relative">
       {/* Sidebar List */}
-      <div className="w-96 flex flex-col border-r border-white/5 bg-gray-900/30 backdrop-blur-sm flex-shrink-0">
-        <div className="p-6 border-b border-white/5">
+      <div className="w-96 flex flex-col border-r border-white/10 bg-black/20 backdrop-blur-sm flex-shrink-0">
+        <div className="p-5 border-b border-white/10">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Backlog Definition</h2>
-            <div className="flex gap-1 text-[10px]">
-              <span className="px-2 py-1 bg-yellow-900/30 border border-yellow-500/30 text-yellow-300 rounded-md">{cards.filter(c => c.status === 'Draft').length} Draft</span>
-              <span className="px-2 py-1 bg-emerald-900/30 border border-emerald-500/30 text-emerald-300 rounded-md">{cards.filter(c => c.status === 'Ready').length} Ready</span>
+            <h2 className="text-sm font-bold text-white tracking-tight">Backlog Definition</h2>
+            <div className="flex gap-1.5 text-[10px]">
+              <span className="px-2 py-0.5 bg-yellow-500/10 border border-yellow-500/20 text-yellow-300 rounded-md font-medium">{cards.filter(c => c.status === 'Draft').length}</span>
+              <span className="px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 rounded-md font-medium">{cards.filter(c => c.status === 'Ready').length}</span>
             </div>
           </div>
           <div className="flex gap-2">
@@ -712,10 +712,10 @@ const CardCreationView = ({
               value={newTitle}
               onChange={(e) => setNewTitle(e.target.value)}
               placeholder="Add epic manually..."
-              className="flex-1 bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-clarity-500 transition-colors"
+              className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-white/20 focus:bg-white/10 transition-colors placeholder-gray-500"
               onKeyDown={(e) => e.key === 'Enter' && createDraft()}
             />
-            <button onClick={createDraft} className="bg-clarity hover:bg-clarity-600 px-3 rounded-xl text-white flex items-center justify-center shadow-lg shadow-clarity/20 transition-all hover:scale-105 active:scale-95">
+            <button onClick={createDraft} className="bg-white/5 hover:bg-white/10 border border-white/10 hover:border-clarity-500/30 px-3 rounded-lg text-gray-300 hover:text-white flex items-center justify-center transition-all">
               <Icons.Plus />
             </button>
           </div>
@@ -732,45 +732,60 @@ const CardCreationView = ({
           {cards.map((card, index) => (
             <div 
               key={card.id}
-              onClick={() => setActiveCardId(card.id)}
-              className={`p-4 rounded-2xl border cursor-pointer transition-all duration-200 group relative overflow-hidden ${
+              className={`p-4 rounded-xl border cursor-pointer transition-all duration-200 group relative overflow-hidden ${
                 activeCardId === card.id 
-                ? 'bg-gradient-to-r from-clarity-900/40 to-transparent border-clarity-500/30 shadow-lg' 
-                : 'bg-transparent border-transparent hover:bg-white/5 hover:border-white/5'
+                ? 'bg-[#3355FF]/10 border-[#3355FF]/30 shadow-lg shadow-[#3355FF]/5' 
+                : 'bg-white/[0.03] border-white/[0.08] hover:bg-white/[0.06] hover:border-white/15'
               }`}
             >
-              <div className="flex justify-between items-start mb-2 relative z-10">
-                 <div className="flex-1">
-                   <h4 className={`text-sm font-medium ${activeCardId === card.id ? 'text-white' : 'text-gray-300 group-hover:text-gray-100'}`}>
+              {activeCardId === card.id && (
+                <div className="absolute left-0 top-1 bottom-1 w-0.5 bg-gradient-to-b from-[#3355FF] to-[#3355FF]/50 rounded-full"></div>
+              )}
+              
+              <div onClick={() => setActiveCardId(card.id)} className="flex justify-between items-start mb-3 relative z-10">
+                 <div className="flex-1 min-w-0 pr-2">
+                   <h4 className={`text-sm font-semibold ${activeCardId === card.id ? 'text-white' : 'text-gray-300 group-hover:text-white'} truncate transition-colors`}>
                      {card.title}
                    </h4>
                    {card.description && (
-                     <p className="text-xs text-gray-500 mt-1 line-clamp-2">{card.description}</p>
+                     <p className="text-xs text-gray-500 mt-2 line-clamp-2 leading-relaxed">{card.description}</p>
                    )}
                  </div>
+                 <button
+                   onClick={(e) => {
+                     e.stopPropagation();
+                     if (confirm(`Delete epic "${card.title}"?`)) {
+                       setCards(cards.filter(c => c.id !== card.id));
+                       if (activeCardId === card.id) {
+                         setActiveCardId(null);
+                       }
+                     }
+                   }}
+                   className="ml-1 text-gray-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0"
+                 >
+                   <Icons.Trash />
+                 </button>
               </div>
-              <div className="flex items-center justify-between mt-3 relative z-10">
-                 <div className="flex items-center gap-2">
-                   <span className={`text-[9px] font-bold px-2 py-1 rounded-md uppercase ${
-                     card.status === 'Ready' 
-                     ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' 
-                     : 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30'
-                   }`}>
-                     {card.status}
+              
+              <div onClick={() => setActiveCardId(card.id)} className="flex items-center gap-2 relative z-10">
+                 <span className={`text-[9px] font-bold px-2.5 py-1 rounded-md uppercase tracking-wide ${
+                   card.status === 'Ready' 
+                   ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' 
+                   : 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20'
+                 }`}>
+                   {card.status}
+                 </span>
+                 {card.subtasks.length > 0 && (
+                   <span className="text-[9px] text-gray-400 bg-white/5 px-2 py-1 rounded-md border border-white/10 font-medium">
+                     {card.subtasks.length} tasks
                    </span>
-                   {card.subtasks.length > 0 && (
-                     <span className="text-[10px] text-gray-500 bg-black/30 px-2 py-1 rounded border border-white/5">
-                       {card.subtasks.length} tasks
-                     </span>
-                   )}
-                 </div>
+                 )}
                  {card.totalStoryPoints > 0 && (
-                   <span className="text-[10px] font-mono font-bold text-clarity-300 bg-clarity-900/30 px-2 py-1 rounded border border-clarity-500/20">
+                   <span className="text-[9px] font-mono font-bold text-[#3355FF] bg-[#3355FF]/10 px-2 py-1 rounded-md border border-[#3355FF]/20 ml-auto">
                      {card.totalStoryPoints} SP
                    </span>
                  )}
               </div>
-              {activeCardId === card.id && <div className="absolute left-0 top-0 bottom-0 w-1 bg-clarity-500 rounded-l-2xl"></div>}
             </div>
           ))}
         </div>
@@ -810,54 +825,64 @@ const CardCreationView = ({
                  </div>
                </div>
                
-               <div className="flex flex-col items-end gap-3">
-                  {/* Generation Settings */}
-                  <div className="bg-black/40 rounded-xl border border-white/10 p-3 space-y-2">
-                    <p className="text-[9px] text-gray-400 uppercase tracking-wider font-bold mb-2">Generation Scope</p>
-                    <div className="flex gap-2">
-                       <button onClick={() => toggleSetting('includeBackend')} className={`px-2 py-1 text-[10px] font-bold uppercase rounded-lg border transition-all ${genSettings.includeBackend ? 'bg-blue-900/40 border-blue-500/40 text-blue-300' : 'border-transparent text-gray-600'}`}>Backend</button>
-                       <button onClick={() => toggleSetting('includeFrontend')} className={`px-2 py-1 text-[10px] font-bold uppercase rounded-lg border transition-all ${genSettings.includeFrontend ? 'bg-purple-900/40 border-purple-500/40 text-purple-300' : 'border-transparent text-gray-600'}`}>Frontend</button>
-                       <button onClick={() => toggleSetting('includeTesting')} className={`px-2 py-1 text-[10px] font-bold uppercase rounded-lg border transition-all ${genSettings.includeTesting ? 'bg-green-900/40 border-green-500/40 text-green-300' : 'border-transparent text-gray-600'}`}>QA</button>
-                       <button onClick={() => toggleSetting('includeDocs')} className={`px-2 py-1 text-[10px] font-bold uppercase rounded-lg border transition-all ${genSettings.includeDocs ? 'bg-orange-900/40 border-orange-500/40 text-orange-300' : 'border-transparent text-gray-600'}`}>Docs</button>
-                    </div>
-                    <div className="flex gap-2 pt-1">
-                       <button onClick={() => toggleSetting('detailedEstimation')} className={`px-3 py-1.5 text-[10px] font-bold uppercase rounded-lg border transition-all flex items-center gap-1.5 w-full justify-center ${genSettings.detailedEstimation ? 'bg-clarity-900/40 border-clarity-500/40 text-clarity-300' : 'bg-yellow-900/40 border-yellow-500/40 text-yellow-300'}`}>
-                          {genSettings.detailedEstimation ? <><Icons.Settings /> Detailed</> : <><Icons.Zap /> Quick MVP</>}
-                       </button>
-                    </div>
+               <div className="flex flex-col items-end gap-2">
+                  {/* Action Buttons - Minimalist */}
+                  <div className="flex gap-2">
+                    {activeCard.status === 'Draft' ? (
+                      <button
+                        onClick={() => updateCard(activeCard.id, { status: 'Ready' })}
+                        className="bg-white/5 hover:bg-emerald-900/30 border border-white/10 hover:border-emerald-500/30 text-gray-400 hover:text-emerald-300 px-4 py-2 rounded-lg text-xs font-medium flex items-center gap-2 transition-all"
+                      >
+                        <Icons.Check /> Mark as Ready
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => updateCard(activeCard.id, { status: 'Draft' })}
+                        className="bg-white/5 hover:bg-yellow-900/30 border border-white/10 hover:border-yellow-500/30 text-gray-400 hover:text-yellow-300 px-4 py-2 rounded-lg text-xs font-medium flex items-center gap-2 transition-all"
+                      >
+                        Move to Draft
+                      </button>
+                    )}
+                    
+                    <button
+                      onClick={() => {
+                        if (confirm(`Delete "${activeCard.title}"?`)) {
+                          setCards(cards.filter(c => c.id !== activeCard.id));
+                          setActiveCardId(null);
+                        }
+                      }}
+                      className="bg-white/5 hover:bg-red-900/30 border border-white/10 hover:border-red-500/30 text-gray-400 hover:text-red-300 px-4 py-2 rounded-lg text-xs font-medium flex items-center gap-2 transition-all"
+                      title="Delete epic"
+                    >
+                      <Icons.Trash /> Delete
+                    </button>
                   </div>
                   
                   {loading && <LoadingIndicator text="Generating specifications..." />}
                   
-                  <button 
-                    onClick={() => generateDetails(activeCard.id)}
-                    disabled={loading}
-                    className="w-full bg-gradient-to-r from-clarity-600 to-clarity-700 hover:from-clarity-500 hover:to-clarity-600 text-white px-6 py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all shadow-glow hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
-                  >
-                    <Icons.Zap /> {activeCard.status === 'Draft' ? 'Generate Full Specs' : 'Regenerate Specs'}
-                  </button>
-                  
-                  {activeCard.status === 'Draft' ? (
-                    <>
-                      <div className="w-full h-px bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
-                      <button
-                        onClick={() => updateCard(activeCard.id, { status: 'Ready' })}
-                        className="w-full bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2.5 rounded-xl text-sm font-medium flex items-center justify-center gap-2 transition-all hover:scale-105 active:scale-95"
-                      >
-                        <Icons.Check /> Mark as Ready
-                      </button>
-                      <p className="text-[10px] text-gray-500 text-center italic">
-                        Edit manually or generate AI specs
-                      </p>
-                    </>
-                  ) : (
-                    <button
-                      onClick={() => updateCard(activeCard.id, { status: 'Draft' })}
-                      className="w-full bg-gray-700 hover:bg-gray-600 text-white px-6 py-2 rounded-xl text-xs font-medium flex items-center justify-center gap-2 transition-all"
-                    >
-                      Move back to Draft
+                  {/* Generation Settings */}
+                  <div className="bg-black/20 rounded-lg border border-white/5 p-3 space-y-2.5 mt-2">
+                    <p className="text-[9px] text-gray-500 uppercase tracking-wider font-bold">Generation Scope</p>
+                    <div className="flex gap-1.5 flex-wrap">
+                       <button onClick={() => toggleSetting('includeBackend')} className={`px-2.5 py-1 text-[10px] font-bold uppercase rounded border transition-all ${genSettings.includeBackend ? 'bg-blue-500/20 border-blue-500/30 text-blue-300' : 'border-white/5 text-gray-600 hover:text-gray-400'}`}>Backend</button>
+                       <button onClick={() => toggleSetting('includeFrontend')} className={`px-2.5 py-1 text-[10px] font-bold uppercase rounded border transition-all ${genSettings.includeFrontend ? 'bg-purple-500/20 border-purple-500/30 text-purple-300' : 'border-white/5 text-gray-600 hover:text-gray-400'}`}>Frontend</button>
+                       <button onClick={() => toggleSetting('includeTesting')} className={`px-2.5 py-1 text-[10px] font-bold uppercase rounded border transition-all ${genSettings.includeTesting ? 'bg-green-500/20 border-green-500/30 text-green-300' : 'border-white/5 text-gray-600 hover:text-gray-400'}`}>Testing</button>
+                       <button onClick={() => toggleSetting('includeDocs')} className={`px-2.5 py-1 text-[10px] font-bold uppercase rounded border transition-all ${genSettings.includeDocs ? 'bg-orange-500/20 border-orange-500/30 text-orange-300' : 'border-white/5 text-gray-600 hover:text-gray-400'}`}>Docs</button>
+                    </div>
+                    <button onClick={() => toggleSetting('detailedEstimation')} className={`w-full px-3 py-1.5 text-[10px] font-bold uppercase rounded border transition-all flex items-center justify-center gap-1.5 ${genSettings.detailedEstimation ? 'bg-clarity-500/20 border-clarity-500/30 text-clarity-300' : 'bg-yellow-500/20 border-yellow-500/30 text-yellow-300'}`}>
+                       <Icons.Settings />
+                       {genSettings.detailedEstimation ? 'Detailed Mode' : 'Quick MVP Mode'}
                     </button>
-                  )}
+                    
+                    {/* Generate Button */}
+                    <button 
+                      onClick={() => generateDetails(activeCard.id)}
+                      disabled={loading}
+                      className="w-full bg-white/5 hover:bg-white/10 border border-white/10 hover:border-clarity-500/30 text-gray-300 hover:text-white px-4 py-2.5 rounded-lg text-xs font-medium flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <Icons.Zap /> {loading ? 'Generating...' : activeCard.status === 'Draft' ? 'Generate Specs' : 'Regenerate Specs'}
+                    </button>
+                  </div>
                </div>
             </div>
 
@@ -924,7 +949,7 @@ const CardCreationView = ({
                          <Icons.Kanban />
                          Implementation Tasks
                        </h3>
-                       <button onClick={() => addSubtask(activeCard.id)} className="text-xs text-clarity-400 hover:text-clarity-300 font-medium bg-clarity-900/30 hover:bg-clarity-900/50 px-4 py-2 rounded-xl transition-all border border-clarity-500/20 flex items-center gap-2">
+                       <button onClick={() => addSubtask(activeCard.id)} className="text-xs font-medium bg-white/5 hover:bg-white/10 border border-white/10 hover:border-clarity-500/30 text-gray-400 hover:text-white px-4 py-2 rounded-xl transition-all flex items-center gap-2">
                          <Icons.Plus />
                          Add Task
                        </button>
@@ -1015,7 +1040,7 @@ const CardCreationView = ({
                   <section>
                      <div className="flex justify-between items-center mb-4">
                         <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest pl-1">Acceptance Criteria</h3>
-                        <button onClick={() => addCriteria(activeCard.id)} className="text-xs text-clarity-400 hover:text-clarity-300 font-medium bg-clarity-900/20 px-3 py-1.5 rounded-lg transition-colors">+ Add</button>
+                        <button onClick={() => addCriteria(activeCard.id)} className="text-xs font-medium bg-white/5 hover:bg-white/10 border border-white/10 hover:border-clarity-500/30 text-gray-400 hover:text-white px-3 py-1.5 rounded-lg transition-all">+ Add</button>
                      </div>
                      <div className="space-y-2.5">
                        {activeCard.acceptanceCriteria.map((ac, i) => (
@@ -1208,7 +1233,7 @@ const ExportManagerView = ({ cards }: { cards: ProjectCard[] }) => {
          <button 
             onClick={downloadCsv}
             disabled={readyCards.length === 0}
-            className="bg-clarity hover:bg-clarity-600 text-white px-6 py-3 rounded-xl shadow-glow transition-all flex items-center gap-2 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 active:scale-95"
+            className="bg-white/5 hover:bg-white/10 border border-white/10 hover:border-clarity-500/30 text-gray-300 hover:text-white px-6 py-3 rounded-xl transition-all flex items-center gap-2 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
          >
             <Icons.Download /> Export to Jira CSV
          </button>
@@ -1458,12 +1483,15 @@ export default function App() {
     <div className="flex h-screen bg-[#030712] text-gray-100 overflow-hidden font-sans selection:bg-clarity-500/30 p-3 gap-3">
       
       {/* Floating Sidebar */}
-      <aside className="w-20 lg:w-72 flex-shrink-0 bg-gray-900/60 backdrop-blur-xl border border-white/5 rounded-3xl flex flex-col z-20 shadow-2xl transition-all duration-300">
-        <div className="h-28 flex items-center justify-center px-2 lg:px-4 border-b border-white/5">
-           <img src={`${import.meta.env.BASE_URL}clarity_logo.png`} alt="ClarityHub Logo" className="w-full h-auto object-contain py-4" />
+      <aside className="w-20 lg:w-64 flex-shrink-0 bg-gray-900/40 backdrop-blur-xl rounded-2xl flex flex-col z-20 shadow-2xl border border-white/10 transition-all duration-300 relative overflow-hidden">
+        {/* Modern gradient overlay */}
+        <div className="absolute inset-0 bg-gradient-to-b from-white/5 via-transparent to-black/20 pointer-events-none"></div>
+        
+        <div className="h-24 flex items-center justify-center px-2 lg:px-4 border-b border-white/10 relative z-10">
+           <img src={`${import.meta.env.BASE_URL}clarity_logo.png`} alt="ClarityHub Logo" className="w-full h-auto object-contain py-3 drop-shadow-lg" />
         </div>
 
-        <nav className="flex-1 p-4 space-y-2">
+        <nav className="flex-1 p-3 space-y-1.5 relative z-10">
           {STAGES.map((stage) => {
             const isActive = activeStage === stage.id;
             return (
@@ -1471,33 +1499,33 @@ export default function App() {
                 key={stage.id}
                 onClick={() => setActiveStage(stage.id)}
                 className={`
-                  w-full flex items-center gap-4 p-4 rounded-2xl transition-all duration-300 group relative overflow-hidden
+                  w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 group relative overflow-hidden
                   ${isActive 
-                    ? 'bg-clarity-600 text-white shadow-lg shadow-clarity-900/50' 
-                    : 'text-gray-400 hover:bg-white/5 hover:text-gray-200'
+                    ? 'bg-[#3355FF]/10 text-white border border-[#3355FF]/30' 
+                    : 'text-gray-400 hover:bg-white/5 hover:text-white border border-transparent hover:border-white/10'
                   }
                 `}
               >
-                {isActive && <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-100%] animate-[shimmer_2s_infinite]"></div>}
-                <span className={`transition-transform duration-300 ${isActive ? 'scale-110' : 'group-hover:scale-110'}`}>{getIconForStage(stage.id)}</span>
-                <div className="hidden lg:flex flex-col items-start text-left">
-                  <span className={`font-medium text-sm ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-white'}`}>
+                {isActive && <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-[#3355FF] to-[#3355FF]/50 rounded-l-xl"></div>}
+                <span className={`transition-all duration-200 relative z-10 ${isActive ? 'text-[#3355FF] scale-110' : 'text-gray-500 group-hover:text-white'}`}>{getIconForStage(stage.id)}</span>
+                <div className="hidden lg:flex flex-col items-start text-left flex-1 relative z-10">
+                  <span className={`font-semibold text-sm ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-white'}`}>
                     {stage.label}
                   </span>
                 </div>
-                {isActive && <div className="hidden lg:block ml-auto"><Icons.ChevronRight /></div>}
+                {isActive && <div className="hidden lg:block relative z-10 text-[#3355FF]"><Icons.ChevronRight /></div>}
               </button>
             );
           })}
         </nav>
 
-        <div className="p-6 border-t border-white/5 hidden lg:block">
-           <div className="bg-black/30 rounded-2xl p-4 border border-white/5">
+        <div className="p-4 border-t border-white/10 hidden lg:block relative z-10">
+           <div className="bg-white/10 rounded-xl p-3 backdrop-blur-sm border border-white/20">
               <div className="flex items-center gap-2 mb-1">
-                 <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse"></div>
-                 <span className="text-[10px] text-gray-400 uppercase tracking-widest font-bold">System Online</span>
+                 <div className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,1)] animate-pulse"></div>
+                 <span className="text-[10px] text-white/90 uppercase tracking-widest font-bold">System Online</span>
               </div>
-              <p className="text-[10px] text-gray-600 font-mono mt-1">v2.5.0-ent</p>
+              <p className="text-[10px] text-white/60 font-mono mt-1">v2.5.0-ent</p>
            </div>
         </div>
       </aside>
