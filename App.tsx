@@ -103,15 +103,18 @@ const LoadingIndicator = ({ text }: { text: string }) => {
   );
 };
 
-// --- VIEW: Free Jam Session ---
 const FreeJamView = ({ 
-  ideas, setIdeas, attachments, setAttachments
+  ideas, setIdeas, attachments, setAttachments, cards, setCards, nfrs, setNfrs, onNavigateToCards
 }: { 
   ideas: Idea[], setIdeas: (i: Idea[]) => void, 
-  attachments: Attachment[], setAttachments: (a: Attachment[]) => void
+  attachments: Attachment[], setAttachments: (a: Attachment[]) => void,
+  cards: ProjectCard[], setCards: (c: ProjectCard[]) => void,
+  nfrs: NFR[], setNfrs: (n: NFR[]) => void,
+  onNavigateToCards: () => void
 }) => {
   const [newIdea, setNewIdea] = useState('');
   const [loading, setLoading] = useState(false);
+  const [generatingCards, setGeneratingCards] = useState(false);
   const [summary, setSummary] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -123,16 +126,48 @@ const FreeJamView = ({
 
   const generateSummary = async () => {
     setLoading(true);
-    setSummary(''); // Clear previous summary
+    let isFirstChunk = true;
     try {
-      // Pass both text ideas and attachments to the service with streaming
       await AIService.summarizeIdeas(ideas, attachments, (chunk) => {
-        setSummary(prev => prev + chunk);
+        if (isFirstChunk) {
+          setSummary(chunk); // Replace on first chunk
+          isFirstChunk = false;
+        } else {
+          setSummary(prev => prev + chunk); // Append subsequent chunks
+        }
       });
     } catch (e) {
       console.error(e);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const generateBacklogCards = async () => {
+    if (!summary.trim()) {
+      alert('Generate a summary first before creating backlog cards.');
+      return;
+    }
+    
+    setGeneratingCards(true);
+    try {
+      // Generate both NFRs and Cards in parallel
+      const [newNFRs, newCards] = await Promise.all([
+        AIService.generateNFRsFromSummary(summary, ideas),
+        AIService.generateCardsFromSummary(summary, ideas, nfrs)
+      ]);
+      
+      // Update state with new NFRs and Cards
+      setNfrs([...nfrs, ...newNFRs]);
+      setCards([...cards, ...newCards]);
+      
+      // Navigate to Card Creation stage
+      onNavigateToCards();
+    } catch (e) {
+      console.error(e);
+      alert('Failed to generate backlog cards and NFRs. Please try again.');
+    } finally {
+      setGeneratingCards(false);
     }
   };
 
@@ -145,7 +180,6 @@ const FreeJamView = ({
           const reader = new FileReader();
           reader.onload = () => {
              const result = reader.result as string;
-             // Remove data URL prefix (e.g., "data:image/png;base64,")
              resolve(result.split(',')[1]);
           };
           reader.onerror = reject;
@@ -163,7 +197,6 @@ const FreeJamView = ({
       } catch (err) {
         console.error("File upload failed", err);
       } finally {
-        // Reset input so same file can be selected again if needed
         if(fileInputRef.current) fileInputRef.current.value = '';
       }
     }
@@ -250,21 +283,49 @@ const FreeJamView = ({
         </div>
 
         {/* AI Output */}
-        <div className="w-1/2 bg-black/20 backdrop-blur-md border border-white/5 rounded-3xl p-8 overflow-y-auto shadow-inner">
+        <div className="w-1/2 bg-black/20 backdrop-blur-md border border-white/5 rounded-3xl p-8 overflow-y-auto shadow-inner flex flex-col">
           <div className="flex items-center justify-between mb-6 border-b border-white/5 pb-4">
             <h3 className="text-xs font-bold text-clarity-400 uppercase tracking-widest">
               AI Executive Summary
             </h3>
             {loading && <StreamingIndicator text="Generating..." />}
           </div>
-          {summary ? (
-             <StreamingMarkdownRenderer content={summary} isStreaming={loading} />
-          ) : !loading ? (
-            <div className="h-full flex flex-col items-center justify-center text-gray-600 opacity-50">
-               <div className="scale-150 mb-4 text-gray-700"><Icons.Brain /></div>
-               <p className="text-sm font-light">Run analysis to generate summary</p>
+          <div className="flex-1 overflow-y-auto">
+            {summary ? (
+              <StreamingMarkdownRenderer content={summary} isStreaming={loading} />
+            ) : !loading ? (
+              <div className="h-full flex flex-col items-center justify-center text-gray-600 opacity-50">
+                <div className="scale-150 mb-4 text-gray-700"><Icons.Brain /></div>
+                <p className="text-sm font-light">Run analysis to generate summary</p>
+              </div>
+            ) : null}
+          </div>
+          
+          {/* Generate Cards & NFRs Button */}
+          {summary && !loading && (
+            <div className="mt-6 pt-6 border-t border-white/5">
+              <button
+                onClick={generateBacklogCards}
+                disabled={generatingCards}
+                className="w-full flex items-center justify-center gap-3 bg-gradient-to-r from-clarity-600 to-clarity-700 hover:from-clarity-500 hover:to-clarity-600 text-white px-6 py-4 rounded-xl shadow-glow transition-all hover:scale-105 active:scale-95 font-semibold disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+              >
+                {generatingCards ? (
+                  <>
+                    <div className="w-5 h-5 rounded-full border-2 border-white/30 border-t-white animate-spin"></div>
+                    Generating Backlog & NFRs...
+                  </>
+                ) : (
+                  <>
+                    <Icons.Kanban />
+                    Generate Backlog & NFRs
+                  </>
+                )}
+              </button>
+              <p className="text-xs text-gray-500 text-center mt-3">
+                Create product backlog cards and non-functional requirements from this summary
+              </p>
             </div>
-          ) : null}
+          )}
         </div>
       </div>
     </div>
@@ -1273,6 +1334,9 @@ export default function App() {
         return <FreeJamView 
           ideas={ideas} setIdeas={setIdeas} 
           attachments={attachments} setAttachments={setAttachments}
+          cards={cards} setCards={setCards}
+          nfrs={nfrs} setNfrs={setNfrs}
+          onNavigateToCards={() => setActiveStage(Stage.CARD_CREATION)}
         />;
       case Stage.NON_FUNCTIONAL:
         return <NfrView nfrs={nfrs} setNfrs={setNfrs} />;

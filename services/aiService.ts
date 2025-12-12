@@ -403,3 +403,169 @@ export const summarizeIdeas = async (
       return "Error analyzing content. Please try again.";
     }
 }
+
+export const generateNFRsFromSummary = async (
+  summary: string,
+  ideas: Idea[]
+): Promise<NFR[]> => {
+  const ideasText = ideas.map(i => `- ${i.content}`).join('\n');
+
+  const prompt = `
+You are a Product Engineering Architect specialized in Non-Functional Requirements.
+Based on the executive summary below, identify and extract all Non-Functional Requirements (NFRs).
+
+Categories to consider:
+- Security: Authentication, authorization, data protection, encryption
+- Performance: Response times, throughput, latency requirements
+- Scalability: Growth capacity, load handling, horizontal/vertical scaling
+- Accessibility: WCAG compliance, screen readers, keyboard navigation
+- Privacy: GDPR, data handling, user consent, data retention
+- Reliability: Uptime, fault tolerance, backup/recovery, monitoring
+- Storage: Database requirements, data retention, backup strategies
+- Infrastructure: Hosting, deployment, CI/CD, cloud services
+
+Original Ideas Context:
+${ideasText}
+
+Executive Summary:
+${summary}
+
+Return ONLY a valid JSON object with this structure:
+{
+  "nfrs": [
+    {
+      "category": "Security|Performance|Scalability|Accessibility|Privacy|Reliability|Storage|Infrastructure",
+      "title": "string (concise requirement title)",
+      "description": "string (detailed explanation)",
+      "impactLevel": "Low|Medium|High"
+    }
+  ]
+}
+
+Generate 3-10 NFRs depending on the summary content. Be specific and actionable.
+`;
+
+  try {
+    const messages: ChatMessage[] = [
+      {
+        role: "user",
+        content: prompt,
+      }
+    ];
+
+    const responseText = await callBedrockAPI(messages, true);
+    
+    // Parse JSON response
+    const parsed = JSON.parse(responseText);
+    
+    // Map to NFR format with IDs
+    const nfrs: NFR[] = (parsed.nfrs || []).map((nfr: any) => ({
+      id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+      category: nfr.category || "Security",
+      title: nfr.title || "Untitled NFR",
+      description: nfr.description || "",
+      impactLevel: nfr.impactLevel || "Medium"
+    }));
+
+    return nfrs;
+  } catch (e) {
+    console.error("Failed to generate NFRs from summary:", e);
+    throw new Error("Could not generate NFRs. Please try again.");
+  }
+};
+
+export const generateCardsFromSummary = async (
+  summary: string,
+  ideas: Idea[],
+  nfrs: NFR[]
+): Promise<ProjectCard[]> => {
+  const ideasText = ideas.map(i => `- ${i.content}`).join('\n');
+  const nfrsText = nfrs.map(n => `[${n.category}] ${n.title}: ${n.description}`).join('\n');
+
+  const prompt = `
+You are a Product Engineering Architect.
+Based on the executive summary below, generate a structured product backlog.
+
+Extract all major Epics or Features mentioned in the summary and create separate cards for each.
+Each card should have:
+- title: Clear, concise epic/feature name
+- description: Detailed explanation (2-4 sentences)
+- acceptanceCriteria: Array of 3-5 specific, testable criteria
+- subtasks: Array of technical tasks with fields: title, type (Backend/Frontend/Testing/DevOps/Docs), storyPoints (1-13)
+- totalStoryPoints: Sum of all subtasks
+- justification: Brief explanation of complexity estimate
+- labels: Array of relevant tags (max 3)
+- risks: Array of potential technical challenges (1-3 items)
+
+Original Ideas Context:
+${ideasText}
+
+NFRs Context:
+${nfrsText || 'None specified'}
+
+Executive Summary:
+${summary}
+
+Return ONLY a valid JSON object with this structure:
+{
+  "cards": [
+    {
+      "title": "string",
+      "description": "string",
+      "acceptanceCriteria": ["string"],
+      "subtasks": [
+        {
+          "title": "string",
+          "type": "Backend|Frontend|Testing|DevOps|Docs",
+          "storyPoints": number
+        }
+      ],
+      "totalStoryPoints": number,
+      "justification": "string",
+      "labels": ["string"],
+      "risks": ["string"]
+    }
+  ]
+}
+
+Generate between 3-8 cards depending on the summary content. Be thorough but avoid duplication.
+`;
+
+  try {
+    const messages: ChatMessage[] = [
+      {
+        role: "user",
+        content: prompt,
+      }
+    ];
+
+    const responseText = await callBedrockAPI(messages, true);
+    
+    // Parse JSON response
+    const parsed = JSON.parse(responseText);
+    
+    // Map to ProjectCard format with IDs and status
+    const cards: ProjectCard[] = (parsed.cards || []).map((card: any) => ({
+      id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+      title: card.title || "Untitled Card",
+      description: card.description || "",
+      acceptanceCriteria: card.acceptanceCriteria || [],
+      subtasks: (card.subtasks || []).map((st: any) => ({
+        title: st.title || "",
+        type: st.type || "Backend",
+        storyPoints: st.storyPoints || 1,
+        completed: false
+      })),
+      totalStoryPoints: card.totalStoryPoints || 0,
+      justification: card.justification || "",
+      labels: card.labels || [],
+      risks: card.risks || [],
+      status: 'Ready' as const
+    }));
+
+    return cards;
+  } catch (e) {
+    console.error("Failed to generate cards from summary:", e);
+    throw new Error("Could not generate backlog cards. Please try again.");
+  }
+}
