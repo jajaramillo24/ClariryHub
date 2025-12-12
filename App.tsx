@@ -703,8 +703,8 @@ const CardCreationView = ({
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-bold text-white tracking-tight">Backlog Definition</h2>
             <div className="flex gap-1.5 text-[10px]">
-              <span className="px-2 py-0.5 bg-yellow-500/10 border border-yellow-500/20 text-yellow-300 rounded-md font-medium">{cards.filter(c => c.status === 'Draft').length}</span>
-              <span className="px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 rounded-md font-medium">{cards.filter(c => c.status === 'Ready').length}</span>
+              <span className="px-2 py-0.5 bg-black/40 border border-yellow-500/20 text-yellow-300 rounded-md font-medium">{cards.filter(c => c.status === 'Draft').length}</span>
+              <span className="px-2 py-0.5 bg-black/40 border border-emerald-500/20 text-emerald-300 rounded-md font-medium">{cards.filter(c => c.status === 'Ready').length}</span>
             </div>
           </div>
           <div className="flex gap-2">
@@ -734,21 +734,17 @@ const CardCreationView = ({
               key={card.id}
               className={`p-4 rounded-xl border cursor-pointer transition-all duration-200 group relative overflow-hidden ${
                 activeCardId === card.id 
-                ? 'bg-[#3355FF]/10 border-[#3355FF]/30 shadow-lg shadow-[#3355FF]/5' 
-                : 'bg-white/[0.03] border-white/[0.08] hover:bg-white/[0.06] hover:border-white/15'
+                ? 'bg-clarity-600 border-clarity-500 text-white shadow-lg shadow-clarity-900/50' 
+                : 'bg-black/20 border-white/5 text-gray-400 hover:bg-white/5 hover:text-white'
               }`}
             >
-              {activeCardId === card.id && (
-                <div className="absolute left-0 top-1 bottom-1 w-0.5 bg-gradient-to-b from-[#3355FF] to-[#3355FF]/50 rounded-full"></div>
-              )}
-              
               <div onClick={() => setActiveCardId(card.id)} className="flex justify-between items-start mb-3 relative z-10">
                  <div className="flex-1 min-w-0 pr-2">
-                   <h4 className={`text-sm font-semibold ${activeCardId === card.id ? 'text-white' : 'text-gray-300 group-hover:text-white'} truncate transition-colors`}>
+                   <h4 className={`text-sm font-semibold truncate transition-colors ${activeCardId === card.id ? 'text-white' : 'text-gray-300 group-hover:text-white'}`}>
                      {card.title}
                    </h4>
                    {card.description && (
-                     <p className="text-xs text-gray-500 mt-2 line-clamp-2 leading-relaxed">{card.description}</p>
+                     <p className={`text-xs mt-2 line-clamp-2 leading-relaxed ${activeCardId === card.id ? 'text-white/70' : 'text-gray-500'}`}>{card.description}</p>
                    )}
                  </div>
                  <button
@@ -761,7 +757,7 @@ const CardCreationView = ({
                        }
                      }
                    }}
-                   className="ml-1 text-gray-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0"
+                   className={`ml-1 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0 ${activeCardId === card.id ? 'text-white/60' : 'text-gray-600'}`}
                  >
                    <Icons.Trash />
                  </button>
@@ -770,18 +766,30 @@ const CardCreationView = ({
               <div onClick={() => setActiveCardId(card.id)} className="flex items-center gap-2 relative z-10">
                  <span className={`text-[9px] font-bold px-2.5 py-1 rounded-md uppercase tracking-wide ${
                    card.status === 'Ready' 
-                   ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' 
-                   : 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20'
+                   ? activeCardId === card.id 
+                     ? 'bg-black/40 text-emerald-200 border border-emerald-400/40'
+                     : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                   : activeCardId === card.id
+                     ? 'bg-black/40 text-yellow-200 border border-yellow-400/40'
+                     : 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20'
                  }`}>
                    {card.status}
                  </span>
                  {card.subtasks.length > 0 && (
-                   <span className="text-[9px] text-gray-400 bg-white/5 px-2 py-1 rounded-md border border-white/10 font-medium">
+                   <span className={`text-[9px] px-2 py-1 rounded-md border font-medium ${
+                     activeCardId === card.id 
+                     ? 'bg-white/10 text-white/80 border-white/20' 
+                     : 'text-gray-400 bg-white/5 border-white/10'
+                   }`}>
                      {card.subtasks.length} tasks
                    </span>
                  )}
                  {card.totalStoryPoints > 0 && (
-                   <span className="text-[9px] font-mono font-bold text-[#3355FF] bg-[#3355FF]/10 px-2 py-1 rounded-md border border-[#3355FF]/20 ml-auto">
+                   <span className={`text-[9px] font-mono font-bold px-2 py-1 rounded-md border ml-auto ${
+                     activeCardId === card.id 
+                     ? 'text-white bg-white/10 border-white/20' 
+                     : 'text-[#3355FF] bg-[#3355FF]/10 border-[#3355FF]/20'
+                   }`}>
                      {card.totalStoryPoints} SP
                    </span>
                  )}
@@ -1501,19 +1509,18 @@ export default function App() {
                 className={`
                   w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 group relative overflow-hidden
                   ${isActive 
-                    ? 'bg-[#3355FF]/10 text-white border border-[#3355FF]/30' 
-                    : 'text-gray-400 hover:bg-white/5 hover:text-white border border-transparent hover:border-white/10'
+                    ? 'bg-clarity-600 border-clarity-500 text-white shadow-lg shadow-clarity-900/50' 
+                    : 'bg-black/20 border-white/5 text-gray-400 hover:bg-white/5 hover:text-white border border-transparent hover:border-white/10'
                   }
                 `}
               >
-                {isActive && <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-[#3355FF] to-[#3355FF]/50 rounded-l-xl"></div>}
-                <span className={`transition-all duration-200 relative z-10 ${isActive ? 'text-[#3355FF] scale-110' : 'text-gray-500 group-hover:text-white'}`}>{getIconForStage(stage.id)}</span>
+                <span className={`transition-all duration-200 relative z-10 ${isActive ? 'text-white scale-110' : 'text-gray-500 group-hover:text-white'}`}>{getIconForStage(stage.id)}</span>
                 <div className="hidden lg:flex flex-col items-start text-left flex-1 relative z-10">
                   <span className={`font-semibold text-sm ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-white'}`}>
                     {stage.label}
                   </span>
                 </div>
-                {isActive && <div className="hidden lg:block relative z-10 text-[#3355FF]"><Icons.ChevronRight /></div>}
+                {isActive && <div className="hidden lg:block relative z-10 text-white"><Icons.ChevronRight /></div>}
               </button>
             );
           })}
