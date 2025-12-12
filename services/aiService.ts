@@ -1,4 +1,5 @@
 import { Idea, NFR, ProjectCard, Attachment } from "../types";
+import { processDocumentAttachment, isWordDocument, isExcelDocument } from "./documentProcessor";
 
 const API_URL = "https://chat.jazusoft.com/api/chat/completions";
 const API_KEY = import.meta.env.VITE_API_KEY || "";
@@ -333,8 +334,22 @@ export const summarizeIdeas = async (
     // If there are attachments, include information about them
     if (attachments.length > 0) {
       prompt += `\n\nAttached Files (${attachments.length}):\n`;
+      
+      // Process Word and Excel documents
       for (const file of attachments) {
-        prompt += `- ${file.name} (${file.mimeType})\n`;
+        if (isWordDocument(file.mimeType, file.name) || isExcelDocument(file.mimeType, file.name)) {
+          try {
+            const extractedText = await processDocumentAttachment(file);
+            if (extractedText) {
+              prompt += `\n--- Content from ${file.name} ---\n${extractedText}\n`;
+            }
+          } catch (error) {
+            console.error(`Failed to process ${file.name}:`, error);
+            prompt += `- ${file.name} (${file.mimeType}) - Could not extract text\n`;
+          }
+        } else {
+          prompt += `- ${file.name} (${file.mimeType})\n`;
+        }
       }
       
       // For images, we can include them in the content

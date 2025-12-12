@@ -9,7 +9,13 @@ ClarityHub es una aplicación de gestión de proyectos potenciada por IA que te 
 ## Características
 
 - 🧠 **Free Jam Session**: Captura y organiza ideas libremente
-- 🛡️ **Análisis de NFRs**: Define y analiza requisitos no funcionales
+- � **Análisis de Documentos**: Soporta múltiples formatos de archivo
+  - 📄 Word Documents (.doc, .docx)
+  - 📊 Excel Spreadsheets (.xls, .xlsx)
+  - 🖼️ Imágenes (png, jpg, etc.)
+  - 📝 PDFs y archivos de texto
+  - 🎵 Archivos de audio
+- �🛡️ **Análisis de NFRs**: Define y analiza requisitos no funcionales
 - 📋 **Generación de Tarjetas**: Crea tarjetas de proyecto detalladas con estimaciones
 - 📊 **Exportación a Jira**: Exporta historias y subtareas en formato CSV optimizado para Jira
   - ✅ Incluye subtareas como issues separadas

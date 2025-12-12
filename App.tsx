@@ -214,12 +214,12 @@ const FreeJamView = ({
                     ref={fileInputRef} 
                     className="hidden" 
                     onChange={handleFileSelect}
-                    accept="audio/*,application/pdf,text/plain,image/*" 
+                    accept="audio/*,application/pdf,text/plain,image/*,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,.doc,.docx,.xls,.xlsx" 
                   />
                   <button 
                     onClick={() => fileInputRef.current?.click()}
                     className="text-gray-400 hover:text-white p-2 rounded-xl hover:bg-white/10 transition-colors"
-                    title="Attach Audio, PDF, or Images"
+                    title="Attach Audio, PDF, Images, Word or Excel files"
                   >
                     <Icons.Paperclip />
                   </button>
