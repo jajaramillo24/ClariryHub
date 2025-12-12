@@ -505,15 +505,15 @@ const NfrView = ({
              {/* RIGHT: List */}
              <div className="w-1/2 flex flex-col bg-black/20 border border-white/5 rounded-3xl p-6 backdrop-blur-md overflow-hidden">
                 <div className="mb-4">
-                   <h3 className="text-lg font-bold text-white mb-1">Defined Requirements ({nfrs.length})</h3>
-                   <p className="text-xs text-gray-500">Project constraints list.</p>
+                   <h3 className="text-lg font-bold text-white mb-1">Non-Functional Requirements ({nfrs.length})</h3>
+                   <p className="text-xs text-gray-500">Enumerated project constraints. Click to edit or delete.</p>
                 </div>
                 
                 <div className="flex-1 overflow-y-auto space-y-3 pr-2 scrollbar-thin">
                    {nfrs.map(nfr => {
                       const catInfo = categories.find(c => c.id === nfr.category) || categories[0];
                       return (
-                        <div key={nfr.id} className="group bg-gray-900/50 border border-white/5 rounded-2xl p-4 hover:border-white/10 transition-all relative">
+                        <div key={nfr.id} className="group bg-gray-900/50 border border-white/5 rounded-2xl p-4 hover:border-white/10 hover:bg-gray-900/70 transition-all relative">
                            <div className="flex justify-between items-start mb-2">
                               <div className="flex items-center gap-2">
                                  <span className="text-gray-400 scale-75 bg-white/5 p-1 rounded">{catInfo.icon}</span>
@@ -523,7 +523,7 @@ const NfrView = ({
                                 <Icons.X />
                               </button>
                            </div>
-                           <h4 className="text-sm font-medium text-white mb-1">{nfr.title}</h4>
+                           <h4 className="text-sm font-bold text-white mb-1">{nfr.title}</h4>
                            {nfr.description && <p className="text-xs text-gray-400 leading-relaxed font-light">{nfr.description}</p>}
                         </div>
                       )
@@ -533,7 +533,7 @@ const NfrView = ({
                       <div className="h-full flex flex-col items-center justify-center text-gray-600 opacity-40">
                          <div className="scale-[2.5] mb-6 opacity-30"><Icons.Info /></div>
                          <p className="text-sm">No requirements defined yet.</p>
-                         <p className="text-xs mt-1">Use the form to add constraints.</p>
+                         <p className="text-xs mt-1">Generate from Brainstorming or add manually.</p>
                       </div>
                    )}
                 </div>
@@ -698,14 +698,20 @@ const CardCreationView = ({
   return (
     <div className="h-full flex flex-row relative">
       {/* Sidebar List */}
-      <div className="w-80 flex flex-col border-r border-white/5 bg-gray-900/30 backdrop-blur-sm flex-shrink-0">
+      <div className="w-96 flex flex-col border-r border-white/5 bg-gray-900/30 backdrop-blur-sm flex-shrink-0">
         <div className="p-6 border-b border-white/5">
-          <h2 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Product Backlog</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Backlog Definition</h2>
+            <div className="flex gap-1 text-[10px]">
+              <span className="px-2 py-1 bg-yellow-900/30 border border-yellow-500/30 text-yellow-300 rounded-md">{cards.filter(c => c.status === 'Draft').length} Draft</span>
+              <span className="px-2 py-1 bg-emerald-900/30 border border-emerald-500/30 text-emerald-300 rounded-md">{cards.filter(c => c.status === 'Ready').length} Ready</span>
+            </div>
+          </div>
           <div className="flex gap-2">
             <input 
               value={newTitle}
               onChange={(e) => setNewTitle(e.target.value)}
-              placeholder="Add item..."
+              placeholder="Add epic manually..."
               className="flex-1 bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-clarity-500 transition-colors"
               onKeyDown={(e) => e.key === 'Enter' && createDraft()}
             />
@@ -716,26 +722,55 @@ const CardCreationView = ({
         </div>
         
         <div className="overflow-y-auto flex-1 p-3 space-y-2">
-          {cards.map(card => (
+          {cards.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <div className="text-gray-600 mb-3 opacity-50"><Icons.Kanban /></div>
+              <p className="text-sm text-gray-500">No epics defined yet</p>
+              <p className="text-xs text-gray-600 mt-1">Generate from Brainstorming or add manually</p>
+            </div>
+          )}
+          {cards.map((card, index) => (
             <div 
               key={card.id}
               onClick={() => setActiveCardId(card.id)}
               className={`p-4 rounded-2xl border cursor-pointer transition-all duration-200 group relative overflow-hidden ${
                 activeCardId === card.id 
-                ? 'bg-gradient-to-r from-clarity-900/40 to-transparent border-clarity-500/30' 
-                : 'bg-transparent border-transparent hover:bg-white/5'
+                ? 'bg-gradient-to-r from-clarity-900/40 to-transparent border-clarity-500/30 shadow-lg' 
+                : 'bg-transparent border-transparent hover:bg-white/5 hover:border-white/5'
               }`}
             >
-              <div className="flex justify-between items-start mb-1 relative z-10">
-                 <h4 className={`text-sm font-medium truncate ${activeCardId === card.id ? 'text-white' : 'text-gray-400 group-hover:text-gray-200'}`}>{card.title}</h4>
+              <div className="flex justify-between items-start mb-2 relative z-10">
+                 <div className="flex-1">
+                   <h4 className={`text-sm font-medium ${activeCardId === card.id ? 'text-white' : 'text-gray-300 group-hover:text-gray-100'}`}>
+                     {card.title}
+                   </h4>
+                   {card.description && (
+                     <p className="text-xs text-gray-500 mt-1 line-clamp-2">{card.description}</p>
+                   )}
+                 </div>
               </div>
-              <div className="flex items-center gap-2 mt-2 relative z-10">
-                 <span className={`w-1.5 h-1.5 rounded-full ${card.status === 'Ready' ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]' : 'bg-gray-600'}`}></span>
+              <div className="flex items-center justify-between mt-3 relative z-10">
+                 <div className="flex items-center gap-2">
+                   <span className={`text-[9px] font-bold px-2 py-1 rounded-md uppercase ${
+                     card.status === 'Ready' 
+                     ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' 
+                     : 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30'
+                   }`}>
+                     {card.status}
+                   </span>
+                   {card.subtasks.length > 0 && (
+                     <span className="text-[10px] text-gray-500 bg-black/30 px-2 py-1 rounded border border-white/5">
+                       {card.subtasks.length} tasks
+                     </span>
+                   )}
+                 </div>
                  {card.totalStoryPoints > 0 && (
-                   <span className="text-[10px] font-mono text-gray-400 bg-black/30 px-1.5 py-0.5 rounded border border-white/5">{card.totalStoryPoints} pts</span>
+                   <span className="text-[10px] font-mono font-bold text-clarity-300 bg-clarity-900/30 px-2 py-1 rounded border border-clarity-500/20">
+                     {card.totalStoryPoints} SP
+                   </span>
                  )}
               </div>
-              {activeCardId === card.id && <div className="absolute left-0 top-0 bottom-0 w-1 bg-clarity-500"></div>}
+              {activeCardId === card.id && <div className="absolute left-0 top-0 bottom-0 w-1 bg-clarity-500 rounded-l-2xl"></div>}
             </div>
           ))}
         </div>
@@ -748,11 +783,21 @@ const CardCreationView = ({
             {/* Header / Title */}
             <div className="flex justify-between items-start mb-10 pb-6 border-b border-white/5">
                <div className="flex-1 mr-8">
-                 <label className="text-[10px] text-gray-500 uppercase font-bold tracking-widest mb-2 block">Epic / Story Title</label>
+                 <div className="flex items-center gap-3 mb-3">
+                   <label className="text-[10px] text-gray-500 uppercase font-bold tracking-widest">Epic / Story Title</label>
+                   <span className={`text-[9px] font-bold px-2 py-1 rounded-md uppercase ${
+                     activeCard.status === 'Ready' 
+                     ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' 
+                     : 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30'
+                   }`}>
+                     {activeCard.status}
+                   </span>
+                 </div>
                  <input 
                     className="w-full bg-transparent text-4xl font-bold text-white focus:outline-none placeholder-gray-700 transition-colors pb-1 tracking-tight"
                     value={activeCard.title}
                     onChange={(e) => updateCard(activeCard.id, { title: e.target.value })}
+                    placeholder="Enter epic title..."
                  />
                  <div className="flex gap-2 mt-4 items-center">
                    <span className="text-[10px] font-mono text-gray-500 px-2 py-1 bg-white/5 rounded-md">ID: {activeCard.id.slice(-6)}</span>
@@ -766,27 +811,77 @@ const CardCreationView = ({
                </div>
                
                <div className="flex flex-col items-end gap-3">
-                  <div className="flex gap-2 bg-black/30 p-1.5 rounded-xl border border-white/5">
-                     <button onClick={() => toggleSetting('includeBackend')} className={`px-2 py-1 text-[10px] font-bold uppercase rounded-lg border transition-all ${genSettings.includeBackend ? 'bg-blue-900/40 border-blue-500/40 text-blue-300' : 'border-transparent text-gray-600'}`}>Backend</button>
-                     <button onClick={() => toggleSetting('includeFrontend')} className={`px-2 py-1 text-[10px] font-bold uppercase rounded-lg border transition-all ${genSettings.includeFrontend ? 'bg-purple-900/40 border-purple-500/40 text-purple-300' : 'border-transparent text-gray-600'}`}>Frontend</button>
-                     <button onClick={() => toggleSetting('includeTesting')} className={`px-2 py-1 text-[10px] font-bold uppercase rounded-lg border transition-all ${genSettings.includeTesting ? 'bg-green-900/40 border-green-500/40 text-green-300' : 'border-transparent text-gray-600'}`}>QA</button>
-                     <button onClick={() => toggleSetting('includeDocs')} className={`px-2 py-1 text-[10px] font-bold uppercase rounded-lg border transition-all ${genSettings.includeDocs ? 'bg-orange-900/40 border-orange-500/40 text-orange-300' : 'border-transparent text-gray-600'}`}>Docs</button>
+                  {/* Generation Settings */}
+                  <div className="bg-black/40 rounded-xl border border-white/10 p-3 space-y-2">
+                    <p className="text-[9px] text-gray-400 uppercase tracking-wider font-bold mb-2">Generation Scope</p>
+                    <div className="flex gap-2">
+                       <button onClick={() => toggleSetting('includeBackend')} className={`px-2 py-1 text-[10px] font-bold uppercase rounded-lg border transition-all ${genSettings.includeBackend ? 'bg-blue-900/40 border-blue-500/40 text-blue-300' : 'border-transparent text-gray-600'}`}>Backend</button>
+                       <button onClick={() => toggleSetting('includeFrontend')} className={`px-2 py-1 text-[10px] font-bold uppercase rounded-lg border transition-all ${genSettings.includeFrontend ? 'bg-purple-900/40 border-purple-500/40 text-purple-300' : 'border-transparent text-gray-600'}`}>Frontend</button>
+                       <button onClick={() => toggleSetting('includeTesting')} className={`px-2 py-1 text-[10px] font-bold uppercase rounded-lg border transition-all ${genSettings.includeTesting ? 'bg-green-900/40 border-green-500/40 text-green-300' : 'border-transparent text-gray-600'}`}>QA</button>
+                       <button onClick={() => toggleSetting('includeDocs')} className={`px-2 py-1 text-[10px] font-bold uppercase rounded-lg border transition-all ${genSettings.includeDocs ? 'bg-orange-900/40 border-orange-500/40 text-orange-300' : 'border-transparent text-gray-600'}`}>Docs</button>
+                    </div>
+                    <div className="flex gap-2 pt-1">
+                       <button onClick={() => toggleSetting('detailedEstimation')} className={`px-3 py-1.5 text-[10px] font-bold uppercase rounded-lg border transition-all flex items-center gap-1.5 w-full justify-center ${genSettings.detailedEstimation ? 'bg-clarity-900/40 border-clarity-500/40 text-clarity-300' : 'bg-yellow-900/40 border-yellow-500/40 text-yellow-300'}`}>
+                          {genSettings.detailedEstimation ? <><Icons.Settings /> Detailed</> : <><Icons.Zap /> Quick MVP</>}
+                       </button>
+                    </div>
                   </div>
-                  <div className="flex gap-2 bg-black/30 p-1.5 rounded-xl border border-white/5">
-                     <button onClick={() => toggleSetting('detailedEstimation')} className={`px-3 py-1.5 text-[10px] font-bold uppercase rounded-lg border transition-all flex items-center gap-1.5 ${genSettings.detailedEstimation ? 'bg-clarity-900/40 border-clarity-500/40 text-clarity-300' : 'bg-yellow-900/40 border-yellow-500/40 text-yellow-300'}`}>
-                        {genSettings.detailedEstimation ? <><Icons.Settings /> Detailed</> : <><Icons.Zap /> Quick MVP</>}
-                     </button>
-                  </div>
-                  {loading && <LoadingIndicator text="Analyzing requirements" />}
+                  
+                  {loading && <LoadingIndicator text="Generating specifications..." />}
+                  
                   <button 
                     onClick={() => generateDetails(activeCard.id)}
                     disabled={loading}
-                    className="bg-clarity hover:bg-clarity-600 text-white px-5 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 transition-all shadow-glow hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                    className="w-full bg-gradient-to-r from-clarity-600 to-clarity-700 hover:from-clarity-500 hover:to-clarity-600 text-white px-6 py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all shadow-glow hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                   >
-                    <Icons.Zap /> {activeCard.status === 'Draft' ? 'Generate Specs' : 'Regenerate'}
+                    <Icons.Zap /> {activeCard.status === 'Draft' ? 'Generate Full Specs' : 'Regenerate Specs'}
                   </button>
+                  
+                  {activeCard.status === 'Draft' ? (
+                    <>
+                      <div className="w-full h-px bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
+                      <button
+                        onClick={() => updateCard(activeCard.id, { status: 'Ready' })}
+                        className="w-full bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2.5 rounded-xl text-sm font-medium flex items-center justify-center gap-2 transition-all hover:scale-105 active:scale-95"
+                      >
+                        <Icons.Check /> Mark as Ready
+                      </button>
+                      <p className="text-[10px] text-gray-500 text-center italic">
+                        Edit manually or generate AI specs
+                      </p>
+                    </>
+                  ) : (
+                    <button
+                      onClick={() => updateCard(activeCard.id, { status: 'Draft' })}
+                      className="w-full bg-gray-700 hover:bg-gray-600 text-white px-6 py-2 rounded-xl text-xs font-medium flex items-center justify-center gap-2 transition-all"
+                    >
+                      Move back to Draft
+                    </button>
+                  )}
                </div>
             </div>
+
+            {/* Draft Notice */}
+            {activeCard.status === 'Draft' && activeCard.subtasks.length === 0 && !activeCard.description && (
+              <div className="mb-8 bg-gradient-to-r from-yellow-900/20 to-orange-900/20 border border-yellow-500/30 rounded-2xl p-6">
+                <div className="flex items-start gap-4">
+                  <div className="text-yellow-400 mt-1">
+                    <Icons.Info />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-yellow-200 mb-2">Epic in Draft Mode</h3>
+                    <p className="text-xs text-gray-300 leading-relaxed mb-3">
+                      This epic has been enumerated but hasn't been detailed yet. You can:
+                    </p>
+                    <ul className="text-xs text-gray-400 space-y-1 ml-4 list-disc">
+                      <li>Edit the title and add a description manually</li>
+                      <li>Add tasks manually using the "Add Task" button below</li>
+                      <li>Click "Generate Full Specs" to auto-generate all details with AI</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="grid grid-cols-12 gap-10">
                

@@ -435,7 +435,7 @@ Return ONLY a valid JSON object with this structure:
   "nfrs": [
     {
       "category": "Security|Performance|Scalability|Accessibility|Privacy|Reliability|Storage|Infrastructure",
-      "title": "string (concise requirement title)",
+      "title": "string (concise requirement title - NUMBER IT: NFR-1, NFR-2, etc.)",
       "description": "string (detailed explanation)",
       "impactLevel": "Low|Medium|High"
     }
@@ -443,8 +443,10 @@ Return ONLY a valid JSON object with this structure:
 }
 
 Generate 3-10 NFRs depending on the summary content. Be specific and actionable.
+IMPORTANT: Number each NFR title sequentially (e.g., "NFR-1: Authentication", "NFR-2: Response Time", etc.)
 `;
 
+  let responseText = '';
   try {
     const messages: ChatMessage[] = [
       {
@@ -453,23 +455,35 @@ Generate 3-10 NFRs depending on the summary content. Be specific and actionable.
       }
     ];
 
-    const responseText = await callBedrockAPI(messages, true);
+    responseText = await callBedrockAPI(messages, true);
+    
+    // Clean the response to remove markdown code blocks
+    const cleanedResponse = cleanJsonResponse(responseText);
     
     // Parse JSON response
-    const parsed = JSON.parse(responseText);
+    const parsed = JSON.parse(cleanedResponse);
     
-    // Map to NFR format with IDs
-    const nfrs: NFR[] = (parsed.nfrs || []).map((nfr: any) => ({
-      id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-      category: nfr.category || "Security",
-      title: nfr.title || "Untitled NFR",
-      description: nfr.description || "",
-      impactLevel: nfr.impactLevel || "Medium"
-    }));
+    // Map to NFR format with IDs and ensure numbering
+    const nfrs: NFR[] = (parsed.nfrs || []).map((nfr: any, index: number) => {
+      let title = nfr.title || "Untitled NFR";
+      // Ensure the title starts with NFR-X format if not already
+      if (!title.match(/^NFR-\d+:/)) {
+        title = `NFR-${index + 1}: ${title}`;
+      }
+      
+      return {
+        id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+        category: nfr.category || "Security",
+        title: title,
+        description: nfr.description || "",
+        impactLevel: nfr.impactLevel || "Medium"
+      };
+    });
 
     return nfrs;
   } catch (e) {
     console.error("Failed to generate NFRs from summary:", e);
+    console.error("Raw response:", responseText);
     throw new Error("Could not generate NFRs. Please try again.");
   }
 };
@@ -484,18 +498,20 @@ export const generateCardsFromSummary = async (
 
   const prompt = `
 You are a Product Engineering Architect.
-Based on the executive summary below, generate a structured product backlog.
+Based on the executive summary below, generate a numbered list of Epic/Feature cards for the product backlog.
 
-Extract all major Epics or Features mentioned in the summary and create separate cards for each.
-Each card should have:
-- title: Clear, concise epic/feature name
-- description: Detailed explanation (2-4 sentences)
-- acceptanceCriteria: Array of 3-5 specific, testable criteria
-- subtasks: Array of technical tasks with fields: title, type (Backend/Frontend/Testing/DevOps/Docs), storyPoints (1-13)
-- totalStoryPoints: Sum of all subtasks
-- justification: Brief explanation of complexity estimate
-- labels: Array of relevant tags (max 3)
-- risks: Array of potential technical challenges (1-3 items)
+Extract all major Epics or Features mentioned in the summary and create a simple enumerated card for each.
+Each card should be numbered (e.g., "1. User Authentication", "2. Dashboard Design") and include:
+- title: Numbered epic/feature name (e.g., "1. User Authentication System")
+- description: Brief 1-2 sentence description of the epic's purpose
+
+DO NOT include:
+- acceptanceCriteria (will be defined later)
+- subtasks (will be generated later)
+- totalStoryPoints (will be calculated later)
+- justification (will be added later)
+- labels (will be tagged later)
+- risks (will be assessed later)
 
 Original Ideas Context:
 ${ideasText}
@@ -510,27 +526,20 @@ Return ONLY a valid JSON object with this structure:
 {
   "cards": [
     {
-      "title": "string",
-      "description": "string",
-      "acceptanceCriteria": ["string"],
-      "subtasks": [
-        {
-          "title": "string",
-          "type": "Backend|Frontend|Testing|DevOps|Docs",
-          "storyPoints": number
-        }
-      ],
-      "totalStoryPoints": number,
-      "justification": "string",
-      "labels": ["string"],
-      "risks": ["string"]
+      "title": "1. Epic Title",
+      "description": "Brief description of this epic"
+    },
+    {
+      "title": "2. Another Epic",
+      "description": "Brief description"
     }
   ]
 }
 
-Generate between 3-8 cards depending on the summary content. Be thorough but avoid duplication.
+Generate between 5-12 enumerated epics depending on the summary content. Number each epic sequentially (1, 2, 3, etc.).
 `;
 
+  let responseText = '';
   try {
     const messages: ChatMessage[] = [
       {
@@ -539,33 +548,32 @@ Generate between 3-8 cards depending on the summary content. Be thorough but avo
       }
     ];
 
-    const responseText = await callBedrockAPI(messages, true);
+    responseText = await callBedrockAPI(messages, true);
+    
+    // Clean the response to remove markdown code blocks
+    const cleanedResponse = cleanJsonResponse(responseText);
     
     // Parse JSON response
-    const parsed = JSON.parse(responseText);
+    const parsed = JSON.parse(cleanedResponse);
     
-    // Map to ProjectCard format with IDs and status
+    // Map to ProjectCard format with IDs and Draft status
     const cards: ProjectCard[] = (parsed.cards || []).map((card: any) => ({
       id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-      title: card.title || "Untitled Card",
+      title: card.title || "Untitled Epic",
       description: card.description || "",
-      acceptanceCriteria: card.acceptanceCriteria || [],
-      subtasks: (card.subtasks || []).map((st: any) => ({
-        title: st.title || "",
-        type: st.type || "Backend",
-        storyPoints: st.storyPoints || 1,
-        completed: false
-      })),
-      totalStoryPoints: card.totalStoryPoints || 0,
-      justification: card.justification || "",
-      labels: card.labels || [],
-      risks: card.risks || [],
-      status: 'Ready' as const
+      acceptanceCriteria: [],
+      subtasks: [],
+      totalStoryPoints: 0,
+      justification: "",
+      labels: [],
+      risks: [],
+      status: 'Draft' as const // Start as Draft for user editing
     }));
 
     return cards;
   } catch (e) {
     console.error("Failed to generate cards from summary:", e);
+    console.error("Raw response:", responseText);
     throw new Error("Could not generate backlog cards. Please try again.");
   }
 }
