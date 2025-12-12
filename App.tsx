@@ -734,7 +734,7 @@ const CardCreationView = ({
               key={card.id}
               className={`p-4 rounded-xl border cursor-pointer transition-all duration-200 group relative overflow-hidden ${
                 activeCardId === card.id 
-                ? 'bg-clarity-600 border-clarity-500 text-white shadow-lg shadow-clarity-900/50' 
+                ? 'bg-clarity-900/30 border-clarity-500/50 text-white' 
                 : 'bg-black/20 border-white/5 text-gray-400 hover:bg-white/5 hover:text-white'
               }`}
             >
@@ -964,9 +964,9 @@ const CardCreationView = ({
                     </div>
                     <div className="space-y-4">
                       {activeCard.subtasks.map((task, i) => (
-                        <div key={i} className="relative bg-white/[0.02] border border-white/10 rounded-2xl p-5 hover:bg-white/[0.04] hover:border-white/20 transition-all group">
+                        <div key={i} className="relative bg-white/[0.02] border border-white/10 rounded-2xl p-5 hover:bg-white/[0.04] hover:border-white/20 transition-all group overflow-hidden">
                            {/* Glassmorphism accent bar */}
-                           <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-clarity-500 to-clarity-700 rounded-l-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                           <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-clarity-500 to-clarity-700 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                            
                            <div className="flex gap-4">
                               {/* Left side: Chip + Title */}
