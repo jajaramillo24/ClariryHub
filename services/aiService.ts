@@ -187,6 +187,7 @@ export interface GenerationOptions {
   includeFrontend: boolean;
   includeTesting: boolean;
   includeDocs: boolean;
+  detailedEstimation: boolean;
 }
 
 export const generateSmartCard = async (
@@ -207,11 +208,31 @@ export const generateSmartCard = async (
     - Documentation: ${options.includeDocs ? 'REQUIRED' : 'EXCLUDED (Do not generate doc tasks)'}
   `;
 
+  const estimationMode = options.detailedEstimation ? `
+    ESTIMATION MODE: DETAILED (Full Production-Ready)
+    - Include all edge cases, error handling, and comprehensive testing
+    - Consider security, performance optimization, and full documentation
+    - Include code review time, integration testing, and deployment preparation
+    - Add monitoring, logging, and observability tasks
+    - Plan for technical debt prevention and refactoring needs
+  ` : `
+    ESTIMATION MODE: MVP RÁPIDO (Minimum Viable to Ship)
+    - Focus on core functionality only, minimal viable implementation
+    - Basic validation and happy path testing only
+    - Minimal documentation (just enough to understand)
+    - Skip advanced optimizations, use simple approaches
+    - Reduce subtasks to essential ones only
+    - Aim for "working and shippable" not "perfect"
+    - Estimates should be 30-50% lower than detailed mode
+  `;
+
   const prompt = `
     You are a Senior Technical Product Manager.
     Create a detailed technical specification for a Jira issue titled: "${title}".
     
     ${scopeInstructions}
+    
+    ${estimationMode}
 
     ESTIMATION RULES (CONSERVATIVE):
     - Use Fibonacci sequence (1, 2, 3, 5, 8, 13).

@@ -523,7 +523,8 @@ const CardCreationView = ({
     includeBackend: true,
     includeFrontend: true,
     includeTesting: true,
-    includeDocs: true
+    includeDocs: true,
+    detailedEstimation: true
   });
 
   const toggleSetting = (key: keyof typeof genSettings) => {
@@ -709,6 +710,11 @@ const CardCreationView = ({
                      <button onClick={() => toggleSetting('includeFrontend')} className={`px-2 py-1 text-[10px] font-bold uppercase rounded-lg border transition-all ${genSettings.includeFrontend ? 'bg-purple-900/40 border-purple-500/40 text-purple-300' : 'border-transparent text-gray-600'}`}>Frontend</button>
                      <button onClick={() => toggleSetting('includeTesting')} className={`px-2 py-1 text-[10px] font-bold uppercase rounded-lg border transition-all ${genSettings.includeTesting ? 'bg-green-900/40 border-green-500/40 text-green-300' : 'border-transparent text-gray-600'}`}>QA</button>
                      <button onClick={() => toggleSetting('includeDocs')} className={`px-2 py-1 text-[10px] font-bold uppercase rounded-lg border transition-all ${genSettings.includeDocs ? 'bg-orange-900/40 border-orange-500/40 text-orange-300' : 'border-transparent text-gray-600'}`}>Docs</button>
+                  </div>
+                  <div className="flex gap-2 bg-black/30 p-1.5 rounded-xl border border-white/5">
+                     <button onClick={() => toggleSetting('detailedEstimation')} className={`px-3 py-1.5 text-[10px] font-bold uppercase rounded-lg border transition-all flex items-center gap-1.5 ${genSettings.detailedEstimation ? 'bg-clarity-900/40 border-clarity-500/40 text-clarity-300' : 'bg-yellow-900/40 border-yellow-500/40 text-yellow-300'}`}>
+                        {genSettings.detailedEstimation ? <><Icons.Settings /> Detailed</> : <><Icons.Zap /> Quick MVP</>}
+                     </button>
                   </div>
                   {loading && <LoadingIndicator text="Analyzing requirements" />}
                   <button 
@@ -901,12 +907,18 @@ const CardCreationView = ({
 // --- VIEW: Export Manager (CSV) ---
 const ExportManagerView = ({ cards }: { cards: ProjectCard[] }) => {
   const [delimiter, setDelimiter] = useState<',' | ';'>(';');
+  const [includeSubtasks, setIncludeSubtasks] = useState(true);
   const [columns, setColumns] = useState<CsvColumn[]>([
     { id: '1', header: 'Summary', field: 'title', enabled: true },
     { id: '2', header: 'Description', field: 'description', enabled: true },
-    { id: '3', header: 'Story Points', field: 'totalStoryPoints', enabled: true },
-    { id: '4', header: 'Issue Type', field: 'issue_type', enabled: true },
-    { id: '5', header: 'Subtasks Count', field: 'subtasks_count', enabled: true },
+    { id: '3', header: 'Issue Type', field: 'issue_type', enabled: true },
+    { id: '4', header: 'Priority', field: 'priority', enabled: true },
+    { id: '5', header: 'Story Points', field: 'totalStoryPoints', enabled: true },
+    { id: '6', header: 'Labels', field: 'labels', enabled: true },
+    { id: '7', header: 'Assignee', field: 'assignee', enabled: false },
+    { id: '8', header: 'Parent ID', field: 'parent_id', enabled: false },
+    { id: '9', header: 'Acceptance Criteria', field: 'acceptanceCriteria', enabled: true },
+    { id: '10', header: 'Risks', field: 'risks', enabled: true },
   ]);
 
   const readyCards = cards.filter(c => c.status === 'Ready');
@@ -919,25 +931,109 @@ const ExportManagerView = ({ cards }: { cards: ProjectCard[] }) => {
     const enabledCols = columns.filter(c => c.enabled);
     const headerRow = enabledCols.map(c => `"${c.header}"`).join(delimiter);
     
-    const bodyRows = readyCards.map(card => {
-      return enabledCols.map(col => {
+    // Generate rows for parent stories and their subtasks
+    const allRows: string[] = [];
+    
+    readyCards.forEach(card => {
+      // Parent story row
+      const parentRow = enabledCols.map(col => {
         let val = '';
-        if (col.field === 'issue_type') val = 'Story';
-        else if (col.field === 'subtasks_count') val = card.subtasks.length.toString();
-        else val = String(card[col.field as keyof ProjectCard] || '');
         
-        // Escape quotes
+        switch(col.field) {
+          case 'issue_type':
+            val = 'Story';
+            break;
+          case 'priority':
+            // Calculate priority based on story points or risks
+            val = card.totalStoryPoints > 13 ? 'High' : card.totalStoryPoints > 5 ? 'Medium' : 'Low';
+            break;
+          case 'labels':
+            val = card.labels.join(', ');
+            break;
+          case 'assignee':
+            val = ''; // Empty, to be assigned in Jira
+            break;
+          case 'parent_id':
+            val = ''; // Parent stories don't have a parent
+            break;
+          case 'acceptanceCriteria':
+            val = card.acceptanceCriteria.join('\n');
+            break;
+          case 'risks':
+            val = card.risks.join('\n');
+            break;
+          case 'subtasks_count':
+            val = card.subtasks.length.toString();
+            break;
+          default:
+            val = String(card[col.field as keyof ProjectCard] || '');
+        }
+        
+        // Escape quotes and newlines for CSV
         val = val.replace(/"/g, '""');
         return `"${val}"`;
       }).join(delimiter);
-    }).join('\n');
+      
+      allRows.push(parentRow);
+      
+      // Add subtask rows if enabled
+      if (includeSubtasks && card.subtasks.length > 0) {
+        card.subtasks.forEach(subtask => {
+          const subtaskRow = enabledCols.map(col => {
+            let val = '';
+            
+            switch(col.field) {
+              case 'title':
+                val = subtask.title;
+                break;
+              case 'description':
+                val = `${subtask.type} subtask for: ${card.title}`;
+                break;
+              case 'issue_type':
+                val = 'Sub-task';
+                break;
+              case 'priority':
+                val = 'Medium';
+                break;
+              case 'totalStoryPoints':
+                val = subtask.storyPoints.toString();
+                break;
+              case 'labels':
+                val = `${subtask.type}, Subtask`;
+                break;
+              case 'assignee':
+                val = '';
+                break;
+              case 'parent_id':
+                // In Jira CSV import, this should reference the parent story's key or summary
+                val = card.title;
+                break;
+              case 'acceptanceCriteria':
+                val = '';
+                break;
+              case 'risks':
+                val = '';
+                break;
+              default:
+                val = '';
+            }
+            
+            // Escape quotes and newlines for CSV
+            val = val.replace(/"/g, '""');
+            return `"${val}"`;
+          }).join(delimiter);
+          
+          allRows.push(subtaskRow);
+        });
+      }
+    });
 
-    const csvContent = `${headerRow}\n${bodyRows}`;
+    const csvContent = `${headerRow}\n${allRows.join('\n')}`;
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
     link.setAttribute("href", url);
-    link.setAttribute("download", `clarity_export_${Date.now()}.csv`);
+    link.setAttribute("download", `jira_import_${Date.now()}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -947,15 +1043,18 @@ const ExportManagerView = ({ cards }: { cards: ProjectCard[] }) => {
     <div className="h-full p-8 flex flex-col">
        <div className="flex justify-between items-end mb-8">
          <div>
-            <h2 className="text-3xl font-bold text-white tracking-tight">Export Manager</h2>
-            <p className="text-gray-500 mt-2 font-light">{readyCards.length} items queued for export.</p>
+            <h2 className="text-3xl font-bold text-white tracking-tight">Jira Export Manager</h2>
+            <p className="text-gray-500 mt-2 font-light">
+              {readyCards.length} {readyCards.length === 1 ? 'story' : 'stories'} ready
+              {includeSubtasks && ` + ${readyCards.reduce((sum, c) => sum + c.subtasks.length, 0)} subtasks`}
+            </p>
          </div>
          <button 
             onClick={downloadCsv}
             disabled={readyCards.length === 0}
             className="bg-clarity hover:bg-clarity-600 text-white px-6 py-3 rounded-xl shadow-glow transition-all flex items-center gap-2 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 active:scale-95"
          >
-            <Icons.Download /> Download CSV
+            <Icons.Download /> Export to Jira CSV
          </button>
        </div>
 
@@ -964,7 +1063,7 @@ const ExportManagerView = ({ cards }: { cards: ProjectCard[] }) => {
           <div className="w-72 flex flex-col gap-6">
              <div className="bg-gray-900/40 border border-white/5 p-6 rounded-3xl backdrop-blur-md">
                 <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-6 flex items-center gap-2">
-                   <Icons.Settings /> Configuration
+                   <Icons.Settings /> Export Settings
                 </h3>
                 
                 <div className="mb-6">
@@ -981,12 +1080,30 @@ const ExportManagerView = ({ cards }: { cards: ProjectCard[] }) => {
                   </div>
                 </div>
 
+                <div className="mb-6">
+                  <label className="flex items-center gap-3 text-sm text-gray-300 cursor-pointer hover:bg-white/5 p-3 rounded-xl transition-colors group">
+                    <div className={`w-5 h-5 rounded border flex items-center justify-center ${includeSubtasks ? 'bg-clarity-500 border-clarity-500' : 'border-gray-600 bg-transparent'}`}>
+                        {includeSubtasks && <Icons.Check />}
+                    </div>
+                    <input 
+                       type="checkbox" 
+                       checked={includeSubtasks} 
+                       onChange={(e) => setIncludeSubtasks(e.target.checked)}
+                       className="hidden"
+                    />
+                    <div>
+                      <div className="font-medium group-hover:text-white transition-colors">Include Subtasks</div>
+                      <div className="text-xs text-gray-500">Export subtasks as separate issues</div>
+                    </div>
+                  </label>
+                </div>
+
                 <div>
-                   <label className="block text-xs text-gray-400 mb-3 font-medium">Included Columns</label>
-                   <div className="space-y-2">
+                   <label className="block text-xs text-gray-400 mb-3 font-medium">Jira Fields (Columns)</label>
+                   <div className="space-y-2 max-h-64 overflow-y-auto scrollbar-thin pr-2">
                      {columns.map(col => (
                        <label key={col.id} className="flex items-center gap-3 text-sm text-gray-300 cursor-pointer hover:bg-white/5 p-2 rounded-xl transition-colors group">
-                         <div className={`w-4 h-4 rounded border flex items-center justify-center ${col.enabled ? 'bg-clarity-500 border-clarity-500' : 'border-gray-600 bg-transparent'}`}>
+                         <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${col.enabled ? 'bg-clarity-500 border-clarity-500' : 'border-gray-600 bg-transparent'}`}>
                              {col.enabled && <Icons.Check />}
                          </div>
                          <input 
@@ -1006,11 +1123,11 @@ const ExportManagerView = ({ cards }: { cards: ProjectCard[] }) => {
           {/* Preview Table */}
           <div className="flex-1 bg-gray-900/40 border border-white/5 rounded-3xl flex flex-col overflow-hidden backdrop-blur-md shadow-2xl">
              <div className="p-4 border-b border-white/5 bg-black/20">
-               <span className="text-xs font-mono text-gray-500 uppercase tracking-widest">Data Preview</span>
+               <span className="text-xs font-mono text-gray-500 uppercase tracking-widest">Jira CSV Preview</span>
              </div>
              <div className="overflow-auto flex-1 scrollbar-thin">
                 <table className="w-full text-left border-collapse">
-                  <thead className="bg-black/40 sticky top-0 backdrop-blur-md">
+                  <thead className="bg-black/40 sticky top-0 backdrop-blur-md z-10">
                     <tr>
                       {columns.filter(c => c.enabled).map(col => (
                         <th key={col.id} className="px-6 py-4 text-xs font-semibold text-gray-400 border-b border-white/5 whitespace-nowrap tracking-wider">
@@ -1020,31 +1137,120 @@ const ExportManagerView = ({ cards }: { cards: ProjectCard[] }) => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/5">
-                    {readyCards.map(card => (
-                      <tr key={card.id} className="hover:bg-white/5 transition-colors">
-                        {columns.filter(c => c.enabled).map(col => {
-                           let val = '';
-                           if (col.field === 'issue_type') val = 'Story';
-                           else if (col.field === 'subtasks_count') val = card.subtasks.length.toString();
-                           else val = String(card[col.field as keyof ProjectCard] || '');
-                           
-                           return (
-                             <td key={col.id} className="px-6 py-4 text-xs text-gray-300 max-w-xs truncate border-r border-white/5 last:border-0 font-light">
-                               {val}
-                             </td>
-                           );
-                        })}
-                      </tr>
-                    ))}
+                    {readyCards.map(card => {
+                      const rows = [];
+                      
+                      // Parent story row
+                      rows.push(
+                        <tr key={card.id} className="hover:bg-white/5 transition-colors bg-clarity-900/20">
+                          {columns.filter(c => c.enabled).map(col => {
+                            let val = '';
+                            
+                            switch(col.field) {
+                              case 'issue_type':
+                                val = 'Story';
+                                break;
+                              case 'priority':
+                                val = card.totalStoryPoints > 13 ? 'High' : card.totalStoryPoints > 5 ? 'Medium' : 'Low';
+                                break;
+                              case 'labels':
+                                val = card.labels.join(', ');
+                                break;
+                              case 'acceptanceCriteria':
+                                val = card.acceptanceCriteria.join(' | ');
+                                break;
+                              case 'risks':
+                                val = card.risks.join(' | ');
+                                break;
+                              case 'assignee':
+                                val = '';
+                                break;
+                              case 'parent_id':
+                                val = '';
+                                break;
+                              default:
+                                val = String(card[col.field as keyof ProjectCard] || '');
+                            }
+                            
+                            return (
+                              <td key={col.id} className="px-6 py-4 text-xs text-gray-200 max-w-xs truncate border-r border-white/5 last:border-0 font-medium">
+                                {val || '-'}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      );
+                      
+                      // Subtask rows
+                      if (includeSubtasks && card.subtasks.length > 0) {
+                        card.subtasks.forEach((subtask, idx) => {
+                          rows.push(
+                            <tr key={`${card.id}-subtask-${idx}`} className="hover:bg-white/5 transition-colors">
+                              {columns.filter(c => c.enabled).map(col => {
+                                let val = '';
+                                
+                                switch(col.field) {
+                                  case 'title':
+                                    val = subtask.title;
+                                    break;
+                                  case 'description':
+                                    val = `${subtask.type} subtask`;
+                                    break;
+                                  case 'issue_type':
+                                    val = 'Sub-task';
+                                    break;
+                                  case 'priority':
+                                    val = 'Medium';
+                                    break;
+                                  case 'totalStoryPoints':
+                                    val = subtask.storyPoints.toString();
+                                    break;
+                                  case 'labels':
+                                    val = `${subtask.type}, Subtask`;
+                                    break;
+                                  case 'parent_id':
+                                    val = card.title;
+                                    break;
+                                  default:
+                                    val = '';
+                                }
+                                
+                                return (
+                                  <td key={col.id} className="px-6 py-3 text-xs text-gray-400 max-w-xs truncate border-r border-white/5 last:border-0 font-light pl-12">
+                                    {val || '-'}
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          );
+                        });
+                      }
+                      
+                      return rows;
+                    })}
                     {readyCards.length === 0 && (
                       <tr>
                         <td colSpan={columns.filter(c => c.enabled).length} className="px-6 py-12 text-center text-gray-600 text-sm font-light">
-                          No data ready for export.
+                          No stories ready for export. Mark cards as "Ready" in the Card Creation stage.
                         </td>
                       </tr>
                     )}
                   </tbody>
                 </table>
+             </div>
+             
+             {/* Jira Import Instructions */}
+             <div className="p-4 border-t border-white/5 bg-black/20">
+               <div className="text-xs text-gray-500">
+                 <p className="font-semibold text-gray-400 mb-2">📋 Jira Import Instructions:</p>
+                 <ol className="list-decimal list-inside space-y-1 pl-2">
+                   <li>Download the CSV file</li>
+                   <li>In Jira, go to <span className="text-clarity-400 font-mono">Issues → Import Issues from CSV</span></li>
+                   <li>Map CSV columns to Jira fields</li>
+                   <li>Use "Parent ID" or "Summary" to link subtasks to stories</li>
+                   <li>Review and confirm the import</li>
+                 </ol>
+               </div>
              </div>
           </div>
        </div>

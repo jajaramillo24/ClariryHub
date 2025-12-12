@@ -56,5 +56,5 @@ export interface CsvColumn {
   id: string;
   header: string;
   enabled: boolean;
-  field: keyof ProjectCard | 'subtasks_count' | 'issue_type'; // mapped fields
+  field: keyof ProjectCard | 'subtasks_count' | 'issue_type' | 'parent_id' | 'assignee' | 'priority' | 'subtask_type'; // mapped fields
 }

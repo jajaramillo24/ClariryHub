@@ -11,7 +11,11 @@ ClarityHub es una aplicación de gestión de proyectos potenciada por IA que te 
 - 🧠 **Free Jam Session**: Captura y organiza ideas libremente
 - 🛡️ **Análisis de NFRs**: Define y analiza requisitos no funcionales
 - 📋 **Generación de Tarjetas**: Crea tarjetas de proyecto detalladas con estimaciones
-- 📊 **Exportación a CSV**: Exporta tus tarjetas para usar en Jira u otras herramientas
+- 📊 **Exportación a Jira**: Exporta historias y subtareas en formato CSV optimizado para Jira
+  - ✅ Incluye subtareas como issues separadas
+  - ✅ Prioridad automática basada en story points
+  - ✅ Campos estándar de Jira (Summary, Description, Issue Type, Priority, Labels, Parent ID)
+  - ✅ Mapeo automático de relaciones padre-hijo para subtareas
 
 ## Tecnología
 
@@ -74,5 +78,24 @@ También puedes desplegar manualmente con:
 ```bash
 npm run deploy
 ```
+
+## Exportación a Jira
+
+ClarityHub incluye una funcionalidad completa de exportación a Jira que permite:
+
+1. **Exportar historias de usuario** con todos sus campos estándar
+2. **Incluir subtareas automáticamente** como issues separadas vinculadas
+3. **Configurar columnas** según las necesidades de tu proyecto
+4. **Preview en tiempo real** de cómo se verá en Jira
+
+### Características de Exportación:
+
+- **Subtareas inteligentes**: Cada subtarea se exporta como un "Sub-task" en Jira con referencia a su historia padre
+- **Prioridad automática**: Se calcula basándose en story points (High: >13, Medium: 6-13, Low: ≤5)
+- **Tipos de subtareas**: Backend, Frontend, Testing, DevOps, Docs
+- **Campos personalizables**: Activa/desactiva columnas según tu configuración de Jira
+- **Múltiples delimitadores**: Soporta coma (`,`) y punto y coma (`;`)
+
+Para más detalles sobre cómo importar el CSV en Jira, consulta [JIRA_EXPORT_GUIDE.md](./JIRA_EXPORT_GUIDE.md)
 
 **Nota**: El comando `npm run deploy` requiere que tengas el secret configurado localmente en tu archivo `.env`.
