@@ -1,164 +1,116 @@
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { Idea, NFR, ProjectCard, Attachment } from "../types";
 import { processDocumentAttachment, isWordDocument, isExcelDocument } from "./documentProcessor";
 
-const API_URL = "https://chat.jazusoft.com/api/chat/completions";
 const API_KEY = import.meta.env.VITE_API_KEY || "";
-const MODEL = "clarirtyhub";
+const MODEL_NAME = "gemini-2.0-flash";
+
+const genAI = new GoogleGenerativeAI(API_KEY);
 
 interface ChatMessage {
-  role: "system" | "user" | "assistant";
-  content: string | Array<{ type: string; text?: string; image_url?: { url: string } }>;
+  role: "user" | "model";
+  parts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }>;
 }
 
-interface ChatCompletionRequest {
-  stream: boolean;
-  model: string;
-  messages: ChatMessage[];
-  features: {
-    image_generation: boolean;
-    code_interpreter: boolean;
-    web_search: boolean;
-  };
-  temperature?: number;
-  max_tokens?: number;
-  response_format?: { type: "json_object" };
-}
+// ---------------------------------------------------------------------------
+// Internal helpers
+// ---------------------------------------------------------------------------
 
-const callBedrockAPI = async (messages: ChatMessage[], jsonMode = false): Promise<string> => {
-  const requestBody: ChatCompletionRequest = {
-    stream: false,
-    model: MODEL,
-    messages,
-    features: {
-      image_generation: false,
-      code_interpreter: false,
-      web_search: false
-    },
-    temperature: 0.2,
-    max_tokens: 4096,
-  };
-
-  if (jsonMode) {
-    requestBody.response_format = { type: "json_object" };
-  }
-
-  const response = await fetch(API_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${API_KEY}`,
-    },
-    body: JSON.stringify(requestBody),
+/**
+ * Single-shot call (no streaming). Returns the full text response.
+ */
+const callGemini = async (
+  messages: ChatMessage[],
+  systemInstruction?: string
+): Promise<string> => {
+  const model = genAI.getGenerativeModel({
+    model: MODEL_NAME,
+    ...(systemInstruction ? { systemInstruction } : {}),
   });
 
-  if (!response.ok) {
-    throw new Error(`API Error: ${response.status} ${response.statusText}`);
-  }
+  // Split off any leading "model" turns to build proper history
+  const history = messages.slice(0, -1);
+  const lastMessage = messages[messages.length - 1];
 
-  const data = await response.json();
-  return data.choices[0]?.message?.content || "";
+  const chat = model.startChat({
+    history: history.map((m) => ({
+      role: m.role,
+      parts: m.parts as any,
+    })),
+    generationConfig: {
+      temperature: 0.2,
+      maxOutputTokens: 4096,
+    },
+  });
+
+  const result = await chat.sendMessage(lastMessage.parts as any);
+  return result.response.text();
 };
 
-const callBedrockAPIStream = async (
-  messages: ChatMessage[], 
+/**
+ * Streaming call. Calls `onChunk` for each text delta, returns the full text.
+ */
+const callGeminiStream = async (
+  messages: ChatMessage[],
   onChunk: (chunk: string) => void,
-  jsonMode = false
+  systemInstruction?: string
 ): Promise<string> => {
-  const requestBody: ChatCompletionRequest = {
-    stream: true,
-    model: MODEL,
-    messages,
-    features: {
-      image_generation: false,
-      code_interpreter: false,
-      web_search: false
-    },
-    temperature: 0.2,
-    max_tokens: 4096,
-  };
-
-  if (jsonMode) {
-    requestBody.response_format = { type: "json_object" };
-  }
-
-  const response = await fetch(API_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${API_KEY}`,
-    },
-    body: JSON.stringify(requestBody),
+  const model = genAI.getGenerativeModel({
+    model: MODEL_NAME,
+    ...(systemInstruction ? { systemInstruction } : {}),
   });
 
-  if (!response.ok) {
-    throw new Error(`API Error: ${response.status} ${response.statusText}`);
-  }
+  const history = messages.slice(0, -1);
+  const lastMessage = messages[messages.length - 1];
 
-  const reader = response.body?.getReader();
-  if (!reader) {
-    throw new Error("Response body is not readable");
-  }
+  const chat = model.startChat({
+    history: history.map((m) => ({
+      role: m.role,
+      parts: m.parts as any,
+    })),
+    generationConfig: {
+      temperature: 0.2,
+      maxOutputTokens: 4096,
+    },
+  });
 
-  const decoder = new TextDecoder();
+  const result = await chat.sendMessageStream(lastMessage.parts as any);
+
   let fullContent = "";
-
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      const chunk = decoder.decode(value, { stream: true });
-      const lines = chunk.split('\n');
-
-      for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          const data = line.slice(6);
-          
-          if (data === '[DONE]') {
-            continue;
-          }
-
-          try {
-            const parsed = JSON.parse(data);
-            const content = parsed.choices[0]?.delta?.content || '';
-            
-            if (content) {
-              fullContent += content;
-              onChunk(content);
-            }
-          } catch (e) {
-            // Skip malformed JSON
-            continue;
-          }
-        }
-      }
+  for await (const chunk of result.stream) {
+    const text = chunk.text();
+    if (text) {
+      fullContent += text;
+      onChunk(text);
     }
-  } finally {
-    reader.releaseLock();
   }
 
   return fullContent;
 };
 
+// ---------------------------------------------------------------------------
+// Utility
+// ---------------------------------------------------------------------------
+
 const cleanJsonResponse = (text: string): string => {
   let cleaned = text.trim();
-  
-  if (cleaned.startsWith('```json\n')) {
+
+  if (cleaned.startsWith("```json\n")) {
     cleaned = cleaned.slice(8);
-  } else if (cleaned.startsWith('```json')) {
+  } else if (cleaned.startsWith("```json")) {
     cleaned = cleaned.slice(7);
-  } else if (cleaned.startsWith('```\n')) {
+  } else if (cleaned.startsWith("```\n")) {
     cleaned = cleaned.slice(4);
-  } else if (cleaned.startsWith('```')) {
+  } else if (cleaned.startsWith("```")) {
     cleaned = cleaned.slice(3);
   }
-  
-  if (cleaned.endsWith('\n```')) {
+
+  if (cleaned.endsWith("\n```")) {
     cleaned = cleaned.slice(0, -4);
-  } else if (cleaned.endsWith('```')) {
+  } else if (cleaned.endsWith("```")) {
     cleaned = cleaned.slice(0, -3);
   }
-  
+
   return cleaned.trim();
 };
 
@@ -181,7 +133,9 @@ Return a JSON object with this exact structure:
 }
 `;
 
-// --- API Functions ---
+// ---------------------------------------------------------------------------
+// Public API
+// ---------------------------------------------------------------------------
 
 export interface GenerationOptions {
   includeBackend: boolean;
@@ -198,25 +152,32 @@ export const generateSmartCard = async (
   options: GenerationOptions,
   onChunk?: (chunk: string) => void
 ): Promise<Partial<ProjectCard>> => {
-  const ideasText = contextIdeas.map(i => `- ${i.content}`).join('\n');
-  const nfrsText = contextNfrs.map(n => `- [${n.category} - ${n.impactLevel} Priority] ${n.title}: ${n.description}`).join('\n');
+  const ideasText = contextIdeas.map((i) => `- ${i.content}`).join("\n");
+  const nfrsText = contextNfrs
+    .map(
+      (n) =>
+        `- [${n.category} - ${n.impactLevel} Priority] ${n.title}: ${n.description}`
+    )
+    .join("\n");
 
   const scopeInstructions = `
     SCOPE OF WORK:
-    - Backend Development: ${options.includeBackend ? 'REQUIRED' : 'EXCLUDED (Do not generate backend tasks)'}
-    - Frontend Development: ${options.includeFrontend ? 'REQUIRED' : 'EXCLUDED (Do not generate frontend tasks)'}
-    - Testing/QA: ${options.includeTesting ? 'REQUIRED' : 'EXCLUDED (Do not generate testing tasks)'}
-    - Documentation: ${options.includeDocs ? 'REQUIRED' : 'EXCLUDED (Do not generate doc tasks)'}
+    - Backend Development: ${options.includeBackend ? "REQUIRED" : "EXCLUDED (Do not generate backend tasks)"}
+    - Frontend Development: ${options.includeFrontend ? "REQUIRED" : "EXCLUDED (Do not generate frontend tasks)"}
+    - Testing/QA: ${options.includeTesting ? "REQUIRED" : "EXCLUDED (Do not generate testing tasks)"}
+    - Documentation: ${options.includeDocs ? "REQUIRED" : "EXCLUDED (Do not generate doc tasks)"}
   `;
 
-  const estimationMode = options.detailedEstimation ? `
+  const estimationMode = options.detailedEstimation
+    ? `
     ESTIMATION MODE: DETAILED (Full Production-Ready)
     - Include all edge cases, error handling, and comprehensive testing
     - Consider security, performance optimization, and full documentation
     - Include code review time, integration testing, and deployment preparation
     - Add monitoring, logging, and observability tasks
     - Plan for technical debt prevention and refactoring needs
-  ` : `
+  `
+    : `
     ESTIMATION MODE: MVP RÁPIDO (Minimum Viable to Ship)
     - Focus on core functionality only, minimal viable implementation
     - Basic validation and happy path testing only
@@ -259,24 +220,20 @@ export const generateSmartCard = async (
 
   try {
     const messages: ChatMessage[] = [
-      {
-        role: "user",
-        content: prompt,
-      },
+      { role: "user", parts: [{ text: prompt }] },
     ];
 
     let responseText: string;
     if (onChunk) {
-      responseText = await callBedrockAPIStream(messages, onChunk, true);
+      responseText = await callGeminiStream(messages, onChunk);
     } else {
-      responseText = await callBedrockAPI(messages, true);
+      responseText = await callGemini(messages);
     }
-    
+
     if (!responseText) throw new Error("No response from AI");
-    
-    // Clean the response to remove markdown code blocks
+
     const cleanedResponse = cleanJsonResponse(responseText);
-    
+
     try {
       return JSON.parse(cleanedResponse) as Partial<ProjectCard>;
     } catch (parseError) {
@@ -291,34 +248,39 @@ export const generateSmartCard = async (
   }
 };
 
-export const analyzeRisks = async (nfrs: NFR[], onChunk?: (chunk: string) => void): Promise<string> => {
-    const nfrsText = nfrs.map(n => `- [${n.category} - ${n.impactLevel} Priority] ${n.title}: ${n.description}`).join('\n');
-    
-    const prompt = `Analyze these Non-Functional Requirements. Return a strictly professional Markdown report identifying conflicts and technical risks. Do not use emojis. Use standard bullet points.\n\n${nfrsText}`;
-
-    const messages: ChatMessage[] = [
-      {
-        role: "user",
-        content: prompt,
-      },
-    ];
-
-    if (onChunk) {
-      return await callBedrockAPIStream(messages, onChunk);
-    } else {
-      const responseText = await callBedrockAPI(messages);
-      return responseText || "No risks identified.";
-    }
-}
-
-export const summarizeIdeas = async (
-  ideas: Idea[], 
-  attachments: Attachment[], 
+export const analyzeRisks = async (
+  nfrs: NFR[],
   onChunk?: (chunk: string) => void
 ): Promise<string> => {
-    const ideasText = ideas.map(i => `- ${i.content}`).join('\n');
-    
-    let prompt = `
+  const nfrsText = nfrs
+    .map(
+      (n) =>
+        `- [${n.category} - ${n.impactLevel} Priority] ${n.title}: ${n.description}`
+    )
+    .join("\n");
+
+  const prompt = `Analyze these Non-Functional Requirements. Return a strictly professional Markdown report identifying conflicts and technical risks. Do not use emojis. Use standard bullet points.\n\n${nfrsText}`;
+
+  const messages: ChatMessage[] = [
+    { role: "user", parts: [{ text: prompt }] },
+  ];
+
+  if (onChunk) {
+    return await callGeminiStream(messages, onChunk);
+  } else {
+    const responseText = await callGemini(messages);
+    return responseText || "No risks identified.";
+  }
+};
+
+export const summarizeIdeas = async (
+  ideas: Idea[],
+  attachments: Attachment[],
+  onChunk?: (chunk: string) => void
+): Promise<string> => {
+  const ideasText = ideas.map((i) => `- ${i.content}`).join("\n");
+
+  let promptText = `
         You are a Product Engineering Architect.
         Analyze the provided context, which includes brainstormed text notes.
         
@@ -331,84 +293,66 @@ export const summarizeIdeas = async (
         ${ideasText}
     `;
 
-    // If there are attachments, include information about them
-    if (attachments.length > 0) {
-      prompt += `\n\nAttached Files (${attachments.length}):\n`;
-      
-      // Process Word and Excel documents
-      for (const file of attachments) {
-        if (isWordDocument(file.mimeType, file.name) || isExcelDocument(file.mimeType, file.name)) {
-          try {
-            const extractedText = await processDocumentAttachment(file);
-            if (extractedText) {
-              prompt += `\n--- Content from ${file.name} ---\n${extractedText}\n`;
-            }
-          } catch (error) {
-            console.error(`Failed to process ${file.name}:`, error);
-            prompt += `- ${file.name} (${file.mimeType}) - Could not extract text\n`;
-          }
-        } else {
-          prompt += `- ${file.name} (${file.mimeType})\n`;
-        }
-      }
-      
-      // For images, we can include them in the content
-      const imageAttachments = attachments.filter(a => a.mimeType.startsWith('image/'));
-      
-      if (imageAttachments.length > 0) {
-        const messages: ChatMessage[] = [
-          {
-            role: "user",
-            content: [
-              { type: "text", text: prompt },
-              ...imageAttachments.map(img => ({
-                type: "image_url",
-                image_url: { url: `data:${img.mimeType};base64,${img.base64}` }
-              }))
-            ]
-          }
-        ];
-        
+  // Build the parts array for the user message
+  const parts: ChatMessage["parts"] = [];
+
+  if (attachments.length > 0) {
+    promptText += `\n\nAttached Files (${attachments.length}):\n`;
+
+    // Process Word and Excel documents — extract text and append to prompt
+    for (const file of attachments) {
+      if (
+        isWordDocument(file.mimeType, file.name) ||
+        isExcelDocument(file.mimeType, file.name)
+      ) {
         try {
-          if (onChunk) {
-            return await callBedrockAPIStream(messages, onChunk);
-          } else {
-            const responseText = await callBedrockAPI(messages);
-            return responseText || "No summary available.";
+          const extractedText = await processDocumentAttachment(file);
+          if (extractedText) {
+            promptText += `\n--- Content from ${file.name} ---\n${extractedText}\n`;
           }
-        } catch (e) {
-          console.error("Bedrock API Error:", e);
-          return "Error analyzing files. Please try again.";
+        } catch (error) {
+          console.error(`Failed to process ${file.name}:`, error);
+          promptText += `- ${file.name} (${file.mimeType}) - Could not extract text\n`;
         }
+      } else if (!file.mimeType.startsWith("image/")) {
+        promptText += `- ${file.name} (${file.mimeType})\n`;
       }
     }
 
-    // For text-only or non-image attachments
-    try {
-      const messages: ChatMessage[] = [
-        {
-          role: "user",
-          content: prompt,
-        }
-      ];
-      
-      if (onChunk) {
-        return await callBedrockAPIStream(messages, onChunk);
-      } else {
-        const responseText = await callBedrockAPI(messages);
-        return responseText || "No summary available.";
-      }
-    } catch (e) {
-      console.error("Bedrock API Error:", e);
-      return "Error analyzing content. Please try again.";
+    // Append image attachments as inline data parts
+    const imageAttachments = attachments.filter((a) =>
+      a.mimeType.startsWith("image/")
+    );
+    for (const img of imageAttachments) {
+      parts.push({
+        inlineData: { mimeType: img.mimeType, data: img.base64 },
+      });
     }
-}
+  }
+
+  // Always add the text part first
+  parts.unshift({ text: promptText });
+
+  const messages: ChatMessage[] = [{ role: "user", parts }];
+
+  try {
+    if (onChunk) {
+      return await callGeminiStream(messages, onChunk);
+    } else {
+      const responseText = await callGemini(messages);
+      return responseText || "No summary available.";
+    }
+  } catch (e) {
+    console.error("Gemini API Error:", e);
+    return "Error analyzing content. Please try again.";
+  }
+};
 
 export const generateNFRsFromSummary = async (
   summary: string,
   ideas: Idea[]
 ): Promise<NFR[]> => {
-  const ideasText = ideas.map(i => `- ${i.content}`).join('\n');
+  const ideasText = ideas.map((i) => `- ${i.content}`).join("\n");
 
   const prompt = `
 You are a Product Engineering Architect specialized in Non-Functional Requirements.
@@ -446,37 +390,29 @@ Generate 3-10 NFRs depending on the summary content. Be specific and actionable.
 IMPORTANT: Number each NFR title sequentially (e.g., "NFR-1: Authentication", "NFR-2: Response Time", etc.)
 `;
 
-  let responseText = '';
+  let responseText = "";
   try {
     const messages: ChatMessage[] = [
-      {
-        role: "user",
-        content: prompt,
-      }
+      { role: "user", parts: [{ text: prompt }] },
     ];
 
-    responseText = await callBedrockAPI(messages, true);
-    
-    // Clean the response to remove markdown code blocks
+    responseText = await callGemini(messages);
+
     const cleanedResponse = cleanJsonResponse(responseText);
-    
-    // Parse JSON response
     const parsed = JSON.parse(cleanedResponse);
-    
-    // Map to NFR format with IDs and ensure numbering
+
     const nfrs: NFR[] = (parsed.nfrs || []).map((nfr: any, index: number) => {
       let title = nfr.title || "Untitled NFR";
-      // Ensure the title starts with NFR-X format if not already
       if (!title.match(/^NFR-\d+:/)) {
         title = `NFR-${index + 1}: ${title}`;
       }
-      
+
       return {
         id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
         category: nfr.category || "Security",
-        title: title,
+        title,
         description: nfr.description || "",
-        impactLevel: nfr.impactLevel || "Medium"
+        impactLevel: nfr.impactLevel || "Medium",
       };
     });
 
@@ -493,8 +429,10 @@ export const generateCardsFromSummary = async (
   ideas: Idea[],
   nfrs: NFR[]
 ): Promise<ProjectCard[]> => {
-  const ideasText = ideas.map(i => `- ${i.content}`).join('\n');
-  const nfrsText = nfrs.map(n => `[${n.category}] ${n.title}: ${n.description}`).join('\n');
+  const ideasText = ideas.map((i) => `- ${i.content}`).join("\n");
+  const nfrsText = nfrs
+    .map((n) => `[${n.category}] ${n.title}: ${n.description}`)
+    .join("\n");
 
   const prompt = `
 You are a Product Engineering Architect.
@@ -517,7 +455,7 @@ Original Ideas Context:
 ${ideasText}
 
 NFRs Context:
-${nfrsText || 'None specified'}
+${nfrsText || "None specified"}
 
 Executive Summary:
 ${summary}
@@ -539,24 +477,17 @@ Return ONLY a valid JSON object with this structure:
 Generate between 5-12 enumerated epics depending on the summary content. Number each epic sequentially (1, 2, 3, etc.).
 `;
 
-  let responseText = '';
+  let responseText = "";
   try {
     const messages: ChatMessage[] = [
-      {
-        role: "user",
-        content: prompt,
-      }
+      { role: "user", parts: [{ text: prompt }] },
     ];
 
-    responseText = await callBedrockAPI(messages, true);
-    
-    // Clean the response to remove markdown code blocks
+    responseText = await callGemini(messages);
+
     const cleanedResponse = cleanJsonResponse(responseText);
-    
-    // Parse JSON response
     const parsed = JSON.parse(cleanedResponse);
-    
-    // Map to ProjectCard format with IDs and Draft status
+
     const cards: ProjectCard[] = (parsed.cards || []).map((card: any) => ({
       id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
       title: card.title || "Untitled Epic",
@@ -567,7 +498,7 @@ Generate between 5-12 enumerated epics depending on the summary content. Number 
       justification: "",
       labels: [],
       risks: [],
-      status: 'Draft' as const // Start as Draft for user editing
+      status: "Draft" as const,
     }));
 
     return cards;
@@ -576,4 +507,4 @@ Generate between 5-12 enumerated epics depending on the summary content. Number 
     console.error("Raw response:", responseText);
     throw new Error("Could not generate backlog cards. Please try again.");
   }
-}
+};

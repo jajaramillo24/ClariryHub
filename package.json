@@ -11,6 +11,7 @@
     "deploy": "gh-pages -d dist"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "mammoth": "^1.11.0",
     "marked": "11.1.1",
     "react": "^19.2.1",
