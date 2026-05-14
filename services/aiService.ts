@@ -3,7 +3,7 @@ import { Idea, NFR, ProjectCard, Attachment } from "../types";
 import { processDocumentAttachment, isWordDocument, isExcelDocument } from "./documentProcessor";
 
 const API_KEY = import.meta.env.VITE_API_KEY || "";
-const MODEL_NAME = "gemini-2.0-flash";
+const MODEL_NAME = "gemini-flash-latest";
 
 const genAI = new GoogleGenerativeAI(API_KEY);
 
